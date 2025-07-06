@@ -1,0 +1,22 @@
+services:
+  subchain-bridge:
+    image: ghcr.io/velas/velas-subchain-bridge
+    container_name: subchain-bridge
+    ports:
+      - "8545:8545"
+    networks:
+      - my_network
+  explorer:
+    image: ethereum-lite-explorer
+    container_name: explorer
+    environment:
+      APP_BASE_URL: {{ app_base_url }}
+      APP_NODE_URL: {{ app_node_url }}
+    ports:
+      - "80:80"
+    networks:
+      - my_network
+
+networks:
+  my_network:
+    driver: bridge
