@@ -35,7 +35,7 @@ pub struct Cli {
         env,
         value_name = "JSON_FILEPATH",
         value_hint = clap::ValueHint::FilePath,
-        default_value = "test/hotwallet.json"
+        default_value = "test/DBAFnAjY7EucVizMaguyXK2N3HyaWNyVcNqBYeRPd1JP.json"
     )]
     pub vlx_native_keypair: PathBuf,
 
