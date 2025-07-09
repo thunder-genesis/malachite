@@ -172,9 +172,9 @@ mod tests {
 
         let resp = app.call(req).await.unwrap();
 
-        println!("Response: {:?}", resp);
+        info!("Response: {:?}", resp);
 
         let body = String::from_utf8_lossy(&test::read_body(resp).await).to_string();
-        println!("Body: {}", body);
+        info!("Body: {}", body);
     }
 }

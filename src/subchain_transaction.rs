@@ -15,6 +15,8 @@ pub type ChainID = u64;
 
 const EVM_LOADER_ID: solana::Address =
     solana::Address::from_str_const("EVM1111111111111111111111111111111111111111");
+const EVM_STATE_ID: solana::Address =
+    solana::Address::from_str_const("EvmState11111111111111111111111111111111111");
 
 pub const EVM_INSTRUCTION_BORSH_PREFIX: u8 = 255u8;
 
@@ -38,7 +40,7 @@ pub fn create_evm_subchain_account(
 ) -> solana::Instruction {
     let evm_subchain_state_pda = evm_state_subchain_account(chain_id);
     let mut account_metas = vec![
-        AccountMeta::new(EVM_LOADER_ID, false),
+        AccountMeta::new(EVM_STATE_ID, false),
         AccountMeta::new(evm_subchain_state_pda, false),
         AccountMeta::new(owner, true),
         AccountMeta::new(solana_sdk::system_program::ID, false),
