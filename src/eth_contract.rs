@@ -24,6 +24,8 @@ sol! {
 
     #[sol(rpc)]
     contract SubchainDB {
+
+        #[derive(Debug, PartialEq, Eq)]
         enum SubchainStatus {
             // Subchain does not exist, default value
             None,

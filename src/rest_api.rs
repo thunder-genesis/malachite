@@ -68,8 +68,9 @@ async fn create_subchain(
         config,
     } = parameters.into_inner();
 
-    info!("Creating subchain with Chain ID: {chain_id}, subchain config: {config:?}");
+    info!("Request to create subchain with Chain ID: {chain_id}, subchain config: {config:?}");
 
+    info!("Checking if subchain already exists...");
     let subchain_status = ctx
         .eth_contract
         .getSubchainStatus(chain_id)
@@ -77,42 +78,40 @@ async fn create_subchain(
         .await
         .map_err(|e| CreateSubchainError::GetSubchainStatusError(e.to_string()))?;
 
-    match subchain_status {
-        SubchainStatus::None => (),
-        _ => {
-            return Err(CreateSubchainError::SubchainAlreadyExists { chain_id });
-        }
-    };
+    if subchain_status != SubchainStatus::None {
+        info!("Subchain {chain_id} already exists");
+        return Err(CreateSubchainError::SubchainAlreadyExists { chain_id });
+    }
 
+    info!("Creating Subchain Owner keypair...");
     let owner = SolKeypair::new();
+    info!("Subchain Owner keypair created, pubkey: {}", owner.pubkey());
 
-    info!("Subchain owner keypair created, pubkey: {}", owner.pubkey());
-
-    info!("Funding subchain owner...");
+    info!("Funding Subchain Owner {}...", owner.pubkey());
     let sig = ctx
         .velas_network
         .fund_subchain_owner(&owner.pubkey())
         .await?;
-    info!("Subchain owner funded, signature: {sig}");
+    info!("Subchain Owner {} funded, signature: {sig}", owner.pubkey());
 
     // NOTE: At this point `owner` account is funded and extra care is needed to avoid losing funds.
 
-    info!("Creating subchain account");
+    info!("Creating Subchain EVM State account...");
     let sig = ctx
         .velas_network
         .create_subchain(owner, chain_id, config)
         .await?;
-    info!("Subchain account created, signature: {sig}");
+    info!("Subchain EVM State account created, signature: {sig}");
 
     // TODO: update contract storage
 
     let subchain_state_pda = evm_state_subchain_account(chain_id);
-    info!("Funding subchain state PDA: {}", subchain_state_pda);
+    info!("Funding Subchain EVM State account: {}", subchain_state_pda);
     let sig = ctx
         .velas_network
         .fund_subchain_state(subchain_state_pda)
         .await?;
-    info!("Subchain state PDA funded, signature: {}", sig);
+    info!("Subchain EVM State account funded, signature: {}", sig);
 
     Ok(())
 }
