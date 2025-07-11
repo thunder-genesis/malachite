@@ -13,17 +13,17 @@ use crate::subchain_transaction::{SubchainConfig, create_evm_subchain_account};
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum VelasRpcError {
-    #[error("Get Blockhash RPC request failed: {0}")]
-    GetBlockhashError(String),
+    #[error("Failed to get latest native blockhash: {0}")]
+    GetBlockhash(String),
 
-    #[error("Failed to fund subchain owner account {account}: {error}")]
-    FundSubchainOwnerError { account: Pubkey, error: String },
+    #[error("Failed to fund Subchain owner account `{account}`: {error}")]
+    FundSubchainOwner { account: Pubkey, error: String },
 
-    #[error("Failed to create subchain {chain_id}: {error}")]
-    CreateSubchainError { chain_id: u64, error: String },
+    #[error("Failed to create Subchain `{chain_id}`: {error}")]
+    CreateSubchain { chain_id: u64, error: String },
 
-    #[error("Failed to fund subchain state account {account}: {error}")]
-    FundSubchainStateError { account: Pubkey, error: String },
+    #[error("Failed to fund Subchain EVM State account `{account}`: {error}")]
+    FundSubchainState { account: Pubkey, error: String },
 }
 
 pub struct VelasNetwork {
@@ -61,7 +61,7 @@ impl VelasNetwork {
             self.client
                 .send_and_confirm_transaction(&fund_subchain_owner)
                 .await
-                .map_err(|e| VelasRpcError::FundSubchainOwnerError {
+                .map_err(|e| VelasRpcError::FundSubchainOwner {
                     account: *account,
                     error: e.to_string(),
                 })?
@@ -81,7 +81,7 @@ impl VelasNetwork {
             let tx =
                 Transaction::new_signed_with_payer(&[ix], Some(&owner.pubkey()), &[&owner], recent_blockhash);
             self.client.send_and_confirm_transaction(&tx).await.map_err(|e| {
-                VelasRpcError::CreateSubchainError {
+                VelasRpcError::CreateSubchain {
                     chain_id,
                     error: e.to_string(),
                 }
@@ -103,7 +103,7 @@ impl VelasNetwork {
             self.client
                 .send_and_confirm_transaction(&fund_subchain_state)
                 .await
-                .map_err(|e| VelasRpcError::FundSubchainStateError {
+                .map_err(|e| VelasRpcError::FundSubchainState {
                     account: subchain_state,
                     error: e.to_string(),
                 })?
@@ -118,7 +118,7 @@ impl VelasNetwork {
             .client
             .get_latest_blockhash()
             .await
-            .map_err(|e| VelasRpcError::GetBlockhashError(e.to_string()))?;
+            .map_err(|e| VelasRpcError::GetBlockhash(e.to_string()))?;
         info!("Recent blockhash: {recent_blockhash}");
         Ok(recent_blockhash)
     }

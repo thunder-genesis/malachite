@@ -6,13 +6,14 @@ edition = "2024"
 [dependencies]
 actix-rt = "2.10.0"
 actix-web = "4.11.0"
-alloy = "1.0.17"
+alloy = "1.0.20"
 anyhow = "1"
 askama = "0.14.0"
 base64 = "0.22.1"
 borsh = "1.5"
 dotenvy = "0.15.7"
-clap = { version = "4.5.40", features = ["env", "derive"] }
+clap = { version = "4.5.41", features = ["env", "derive"] }
+cloudflare = "0.14.0"
 primitive-types = { git = "https://github.com/velas/parity-common", branch = "bump-borsh", features = ["borsh", "serde"] }
 rand = "0.9.1"
 serde = "1.0.219"
@@ -20,7 +21,7 @@ serde_json = "1.0.140"
 solana-client = { version = "2.3.1"}
 solana-sdk = { version = "2.3.1", features = ["full", "borsh"] }
 thiserror = "2"
-tgbot = "0.39.0"
+tgbot = "0.39.1"
 tokio = { version = "1.46.1", features = ["rt-multi-thread", "macros"] }
 tracing = "0.1"
 # tracing-journald = "0.3"

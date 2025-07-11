@@ -23,7 +23,7 @@ pub enum CreateSubchainError {
     #[error("Failed to get Subchain status from Contract DB: {0}")]
     GetSubchainStatus(#[source] alloy::contract::Error),
 
-    #[error("Subchain {chain_id} already exists")]
+    #[error("Subchain `{chain_id}` already exists")]
     SubchainAlreadyExists { chain_id: ChainID },
 
     #[error("Failed to fund Subchain owner account: {0}")]
