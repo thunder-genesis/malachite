@@ -38,24 +38,28 @@ sol! {
         }
 
         // ---PUBLIC INTERFACE BEGIN---
-        function getSubchainStatus(uint64 key) public view returns (SubchainStatus) {
-            return subchainStatus[key];
+        function getSubchainStatus(uint64 chainId) public view returns (SubchainStatus) {
+            return subchainStatus[chainId];
         }
 
-        function setSubchainStatus(uint64 key, SubchainStatus status) public {
-            subchainStatus[key] = status;
+        function setSubchainStatus(uint64 chainId, SubchainStatus status) public {
+            subchainStatus[chainId] = status;
         }
 
-        function getExpiryTimestamp(uint64 key) public view returns (uint256) {
-            return activeUntil[key];
+        function getExpiryTimestamp(uint64 chainId) public view returns (uint256) {
+            return activeUntil[chainId];
         }
 
-        function getDomainName(uint64 key) public view returns (string memory) {
-            return domainName[key];
+        function setExpiryTimestamp(uint64 chainId, uint64 activeUntil) public {
+            subchainStatus[chainId] = status;
         }
 
-        function setDomainName(uint64 key, string memory name) public {
-            domainName[key] = name;
+        function getDomainName(uint64 chainId) public view returns (string memory) {
+            return domainName[chainId];
+        }
+
+        function setDomainName(uint64 chainId, string memory name) public {
+            domainName[chainId] = name;
         }
         // ---PUBLIC INTERFACE END---
 

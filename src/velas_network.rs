@@ -71,7 +71,7 @@ impl VelasNetwork {
 
     pub async fn create_subchain(
         &self,
-        owner: SolKeypair,
+        owner: &SolKeypair,
         chain_id: u64,
         config: SubchainConfig,
     ) -> Result<Signature, VelasRpcError> {

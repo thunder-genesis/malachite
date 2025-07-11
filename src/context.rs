@@ -23,7 +23,7 @@ pub enum ContextError {
 pub struct Context {
     pub tg_alert: TgAlert,
     pub eth_contract: SubchainDBImpl,
-    pub velas_network: VelasNetwork,
+    pub vlx: VelasNetwork,
     pub cloudflare: Cloudflare,
 }
 
@@ -65,7 +65,7 @@ impl Context {
         Ok(Self {
             tg_alert,
             eth_contract,
-            velas_network,
+            vlx: velas_network,
             cloudflare,
         })
     }

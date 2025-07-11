@@ -2,6 +2,9 @@ use tgbot::{
     api::{Client, ClientError, ExecuteError},
     types::{ChatId, SendMessage},
 };
+use uuid::Uuid;
+
+use crate::rest_api::CreateSubchainError;
 
 pub struct TgAlert {
     client: Option<Client>,
@@ -25,14 +28,22 @@ impl TgAlert {
         }
     }
 
-    pub async fn notify(&self, message: &str) -> Result<(), ExecuteError> {
+    pub async fn notify_subchain_creation_error(
+        &self,
+        uuid: Uuid,
+        error: &CreateSubchainError,
+    ) -> Result<(), ExecuteError> {
+        let message = format!("Create Subchain Error\n\nid: {uuid}\n\n{error}");
+        self.notify(&message).await
+    }
+
+    async fn notify(&self, message: &str) -> Result<(), ExecuteError> {
         if let Some(client) = &self.client {
             return client
                 .execute(SendMessage::new(self.chat_id.clone(), message.to_string()))
                 .await
                 .map(drop);
         }
-
         Ok(())
     }
 }
