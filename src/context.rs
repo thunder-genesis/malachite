@@ -31,8 +31,7 @@ impl Context {
     pub async fn new(cli: &Cli) -> Result<Self, ContextError> {
         let tg_alert = if let Some(tg_bot_token) = &cli.tg_bot_token {
             let chat_id = cli.tg_chat_id.as_deref().unwrap_or_default();
-            TgAlert::new_client(tg_bot_token, chat_id)
-                .map_err(|_e| ContextError::TelegramAlertError)?
+            TgAlert::new_client(tg_bot_token, chat_id).map_err(|_e| ContextError::TelegramAlertError)?
         } else {
             TgAlert::new_empty()
         };

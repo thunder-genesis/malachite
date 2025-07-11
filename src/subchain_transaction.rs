@@ -78,18 +78,7 @@ pub fn create_evm_instruction_with_borsh(
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[allow(clippy::large_enum_variant)]
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    // TODO(L): add schema generation custom command
-    // BorshSchema,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Ord,
-    PartialOrd,
-)]
+#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
 pub enum EvmInstruction {
     SwapNativeToEther {},
     FreeOwnership {},
@@ -128,16 +117,7 @@ pub enum EvmSubChain {
 }
 
 #[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Ord,
-    PartialOrd,
-    Serialize,
-    Deserialize,
+    BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,
 )]
 pub enum Hardfork {
     Istanbul,
@@ -182,16 +162,7 @@ pub struct ExtendedConfig {
 }
 
 #[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Ord,
-    PartialOrd,
-    Serialize,
-    Deserialize,
+    BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,
 )]
 pub struct SubchainConfig {
     pub alloc: BTreeMap<evm::Address, AllocAccount>,

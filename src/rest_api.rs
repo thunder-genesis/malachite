@@ -16,12 +16,12 @@ use actix_web::{
 use askama::Template;
 use serde_json::json;
 use solana_sdk::{signature::Keypair as SolKeypair, signer::Signer as _};
-use tracing::info;
+use tracing::{error, info};
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum CreateSubchainError {
     #[error("Failed to get subchain status from DB: {0}")]
-    GetSubchainStatusError(String),
+    GetSubchainStatusError(#[from] alloy::contract::Error),
 
     #[error("Subchain {chain_id} already exists")]
     SubchainAlreadyExists { chain_id: ChainID },
@@ -76,10 +76,13 @@ async fn create_subchain(
         .getSubchainStatus(chain_id)
         .call()
         .await
-        .map_err(|e| CreateSubchainError::GetSubchainStatusError(e.to_string()))?;
+        .map_err(|e| {
+            error!("Failed to get Subchain status from Contract DB: {e}");
+            CreateSubchainError::GetSubchainStatusError(e.to_string())
+        })?;
 
     if subchain_status != SubchainStatus::None {
-        info!("Subchain {chain_id} already exists");
+        error!("Subchain {chain_id} already exists");
         return Err(CreateSubchainError::SubchainAlreadyExists { chain_id });
     }
 
@@ -88,39 +91,45 @@ async fn create_subchain(
     info!("Subchain Owner keypair created, pubkey: {}", owner.pubkey());
 
     info!("Funding Subchain Owner {}...", owner.pubkey());
-    let sig = ctx
-        .velas_network
-        .fund_subchain_owner(&owner.pubkey())
-        .await?;
-    info!("Subchain Owner {} funded, signature: {sig}", owner.pubkey());
+    match ctx.velas_network.fund_subchain_owner(&owner.pubkey()).await {
+        Ok(sig) => info!("Subchain Owner {} funded, signature: {sig}", owner.pubkey()),
+        Err(e) => {
+            error!("Failed to fund Subchain Owner {}: {e}", owner.pubkey());
+            return Err(e.into());
+        }
+    }
 
     // NOTE: At this point `owner` account is funded and extra care is needed to avoid losing funds.
 
     info!("Creating Subchain EVM State account...");
-    let sig = ctx
-        .velas_network
-        .create_subchain(owner, chain_id, config)
-        .await?;
-    info!("Subchain EVM State account created, signature: {sig}");
+    match ctx.velas_network.create_subchain(owner, chain_id, config).await {
+        Ok(sig) => info!("Subchain EVM State account created, signature: {sig}"),
+        Err(e) => {
+            error!("Failed to create Subchain EVM State account: {e}");
+            // TODO: recover funds from Subchain Owner account
+            return Err(e.into());
+        }
+    }
 
     // TODO: update contract storage
 
     let subchain_state_pda = evm_state_subchain_account(chain_id);
     info!("Funding Subchain EVM State account: {}", subchain_state_pda);
-    let sig = ctx
-        .velas_network
-        .fund_subchain_state(subchain_state_pda)
-        .await?;
-    info!("Subchain EVM State account funded, signature: {}", sig);
+    match ctx.velas_network.fund_subchain_state(subchain_state_pda).await {
+        Ok(sig) => info!("Subchain EVM State account funded, signature: {}", sig),
+        Err(e) => {
+            error!("Failed to fund Subchain EVM State account: {e}");
+            // TODO: recover funds from Subchain Owner account
+            return Err(e.into());
+        }
+    }
 
     Ok(())
 }
 
 #[get("/debug")]
 async fn debug() -> impl Responder {
-    let result = DockerCompose::new("my-chain", "velasocean.com")
-        .render()
-        .unwrap();
+    let result = DockerCompose::new("my-chain", "velasocean.com").render().unwrap();
     HttpResponse::Ok().body(result)
 }
 

@@ -78,27 +78,19 @@ impl VelasNetwork {
         let recent_blockhash = self.get_latest_blockhash().await?;
         let signature = {
             let ix = create_evm_subchain_account(owner.pubkey(), chain_id, config, None);
-            let tx = Transaction::new_signed_with_payer(
-                &[ix],
-                Some(&owner.pubkey()),
-                &[&owner],
-                recent_blockhash,
-            );
-            self.client
-                .send_and_confirm_transaction(&tx)
-                .await
-                .map_err(|e| VelasRpcError::CreateSubchainError {
+            let tx =
+                Transaction::new_signed_with_payer(&[ix], Some(&owner.pubkey()), &[&owner], recent_blockhash);
+            self.client.send_and_confirm_transaction(&tx).await.map_err(|e| {
+                VelasRpcError::CreateSubchainError {
                     chain_id,
                     error: e.to_string(),
-                })?
+                }
+            })?
         };
         Ok(signature)
     }
 
-    pub async fn fund_subchain_state(
-        &self,
-        subchain_state: Pubkey,
-    ) -> Result<Signature, VelasRpcError> {
+    pub async fn fund_subchain_state(&self, subchain_state: Pubkey) -> Result<Signature, VelasRpcError> {
         let recent_blockhash = self.get_latest_blockhash().await?;
         let signature = {
             let fund_subchain_state = transfer(
