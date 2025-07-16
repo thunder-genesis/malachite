@@ -4,6 +4,7 @@ mod cloudflare;
 mod context;
 mod docker;
 mod eth_contract;
+mod openstack;
 mod rest_api;
 mod subchain_transaction;
 mod velas_network;

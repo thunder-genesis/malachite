@@ -112,10 +112,7 @@ impl Cloudflare {
                 source,
             })?;
 
-        Ok(records
-            .iter()
-            .find(|record| record.name == full_domain_name)
-            .is_some())
+        Ok(records.iter().any(|record| record.name == full_domain_name))
     }
 
     async fn get_zone(&self) -> Result<ZoneID, CloudflareError> {

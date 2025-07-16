@@ -74,4 +74,36 @@ pub struct Cli {
     /// Cloudflare registered domain umbrella for subchains
     #[arg(long, env, value_name = "DOMAIN", default_value = "velasocean.com")]
     pub domain: String,
+
+    /// Openstack Auth URL
+    #[arg(long, env, value_name = "URL")]
+    pub os_auth_url: String,
+
+    /// Openstack Project Name
+    #[arg(long, env, value_name = "STRING")]
+    pub os_project_name: String,
+
+    /// Openstack Username
+    #[arg(long, env, value_name = "STRING")]
+    pub os_username: String,
+
+    /// Openstack Password
+    #[arg(long, env, value_name = "STRING")]
+    #[redact(fixed = 8)]
+    pub os_password: String,
+
+    /// Openstack User Domain Name
+    #[arg(long, env, value_name = "STRING", default_value = "Default")]
+    pub os_user_domain_name: String,
+
+    /// Openstack Project Domain Name
+    #[arg(long, env, value_name = "STRING", default_value = "Default")]
+    pub os_project_domain_name: String,
+}
+
+#[cfg(test)]
+impl Cli {
+    pub fn mock() -> Self {
+        Self::parse_from(include_str!("../test/cli.txt").split('\n'))
+    }
 }

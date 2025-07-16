@@ -142,6 +142,7 @@ async fn run_create_subchain(
         return Err(CreateSubchainError::SubchainAlreadyExists { chain_id });
     }
 
+    // TODO: tiny chance of race condition
     info!("Checking is domain `{}` is available...", domain);
     let is_available = ctx.cloudflare.is_subdomain_exists(&domain).await.unwrap();
     if !is_available {
@@ -225,7 +226,6 @@ async fn debug() -> impl Responder {
 #[cfg(test)]
 mod tests {
     use actix_web::{dev::Service, test};
-    use alloy::primitives::address;
     use tracing::Level;
     use tracing_subscriber::FmtSubscriber;
 
@@ -237,22 +237,7 @@ mod tests {
     async fn test() {
         FmtSubscriber::builder().with_max_level(Level::INFO).init();
 
-        let cli = Cli {
-            bind_address: "127.0.0.1:8080".parse().unwrap(),
-            smc_network_rpc: "http://127.0.0.1:8545".to_string(),
-            smc_address: address!("0x5FbDB2315678afecb367f032d93F642f64180aa3"),
-            smc_signer: "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-                .parse()
-                .unwrap(),
-            vlx_network_rpc: "http://127.0.0.1:8899".to_string(),
-            vlx_native_keypair: "test/DBAFnAjY7EucVizMaguyXK2N3HyaWNyVcNqBYeRPd1JP.json".into(),
-            tg_bot_token: None,
-            tg_chat_id: None,
-            fund_subchain_owner: 1_000_001___000000000,
-            fund_subchain_state: 10_000___000000000,
-            cloudflare_api_token: "".into(),
-            domain: "velasocean.com".into(),
-        };
+        let cli = Cli::mock();
 
         let context = Data::new(Context::new(&cli).await.unwrap());
 

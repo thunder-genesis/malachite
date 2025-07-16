@@ -1,0 +1,7 @@
+test-executable-bin
+--smc-address=0x5FbDB2315678afecb367f032d93F642f64180aa3
+--cloudflare-api-token=token
+--os-auth-url=http://10.35.48.20/identity/v3
+--os-project-name=admin
+--os-username=admin
+--os-password=admin
