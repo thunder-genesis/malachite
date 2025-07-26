@@ -1,7 +1,15 @@
 test-executable-bin
 --smc-address=0x5FbDB2315678afecb367f032d93F642f64180aa3
 --cloudflare-api-token=token
---os-auth-url=http://10.35.48.20/identity/v3
+--os-auth-url=http://192.168.56.103/identity/v3
 --os-project-name=admin
 --os-username=admin
 --os-password=admin
+--os-network-id
+0f6b60df-3e6d-4551-9941-a4ce3a6f8a5d
+--os-image-id
+4cc02ad4-490b-45b6-8b19-1d9e40ec2c3b
+--os-flavor-id
+d3
+--os-ssh-pubkey-name
+maksimv_tiraelpc

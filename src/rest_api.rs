@@ -235,7 +235,7 @@ mod tests {
 
     #[actix_web::test]
     async fn test() {
-        FmtSubscriber::builder().with_max_level(Level::INFO).init();
+        let _ = FmtSubscriber::builder().with_max_level(Level::INFO).try_init();
 
         let cli = Cli::mock();
 

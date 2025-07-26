@@ -99,6 +99,22 @@ pub struct Cli {
     /// Openstack Project Domain Name
     #[arg(long, env, value_name = "STRING", default_value = "Default")]
     pub os_project_domain_name: String,
+
+    /// OpenStack Network ID to which the instance will be connected
+    #[arg(long, env, value_name = "STRING")]
+    pub os_network_id: String,
+
+    /// OpenStack Instance Operating System Image ID
+    #[arg(long, env, value_name = "STRING")]
+    pub os_image_id: String,
+
+    /// OpenStack Instance Hardware Specification ID (CPU, RAM, DISK, etc.)
+    #[arg(long, env, value_name = "STRING")]
+    pub os_flavor_id: String,
+
+    /// OpenStack SSH Public Key ID
+    #[arg(long, env, value_name = "STRING")]
+    pub os_ssh_pubkey_name: String,
 }
 
 #[cfg(test)]
