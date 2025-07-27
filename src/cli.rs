@@ -33,7 +33,7 @@ pub struct Cli {
     #[arg(
         long,
         env,
-        value_name = "JSON_FILEPATH",
+        value_name = "JSONFILE",
         value_hint = clap::ValueHint::FilePath,
         default_value = "test/DBAFnAjY7EucVizMaguyXK2N3HyaWNyVcNqBYeRPd1JP.json"
     )]
@@ -115,6 +115,14 @@ pub struct Cli {
     /// OpenStack SSH Public Key ID
     #[arg(long, env, value_name = "STRING")]
     pub os_ssh_pubkey_name: String,
+
+    /// Path to SSH secret key PEM file for bootstrapping the OpenStack instance
+    #[arg(long, env, value_name = "PEMFILE", value_hint = clap::ValueHint::FilePath)]
+    pub ssh_secret_key: PathBuf,
+
+    /// Path to SSH bootstrap script
+    #[arg(long, env, value_name = "BASHFILE", value_hint = clap::ValueHint::FilePath)]
+    pub ssh_bootstrap_script: PathBuf,
 }
 
 #[cfg(test)]

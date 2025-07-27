@@ -90,29 +90,12 @@ impl Openstack {
         }
     }
 
-    /// Deploys an OpenStack instance for a given domain name and returns its IP address.
-    /// Usually some delay is required for the instance to be available for SSH.
+    /// Deploys an OpenStack instance with the specified name and returns its IP address.
+    /// Typically, a delay is required for the instance to become available for ICMP and SSH.
     pub async fn deploy_openstack_instance(&self, instance_name: &str) -> Result<Ipv4Addr, CloudError> {
         info!("Deploying OpenStack instance `{instance_name}`...");
-        info!("Creating OpenStack client...");
-        let client = {
-            let config = CloudConfig {
-                auth: Some(Auth {
-                    auth_url: Some(self.os_auth_url.clone()),
-                    username: Some(self.os_username.clone()),
-                    user_domain_name: Some(self.os_user_domain_name.clone()),
-                    password: Some(self.os_password.to_string().into()),
-                    project_name: Some(self.os_project_name.clone()),
-                    project_domain_name: Some(self.os_project_domain_name.clone()),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            };
 
-            AsyncOpenStack::new(&config)
-                .await
-                .map_err(|err| CloudError::CreateClient(err))?
-        };
+        let client = self.create_client().await?;
 
         info!("Building Instance creation request...");
         let networks = create_api::NetworksBuilder::default()
@@ -125,6 +108,7 @@ impl Openstack {
             .name(instance_name)
             .networks(create_api::ServerNetworks::F1(vec![networks]))
             .key_name(&self.os_ssh_pubkey_name)
+            .admin_pass("ubuntuw")
             .build()?;
 
         let instance = create_api::RequestBuilder::default().server(server).build()?;
@@ -194,6 +178,26 @@ impl Openstack {
 
         return Err(CloudError::Timeout);
     }
+
+    async fn create_client(&self) -> Result<AsyncOpenStack, CloudError> {
+        info!("Creating OpenStack client...");
+        let config = CloudConfig {
+            auth: Some(Auth {
+                auth_url: Some(self.os_auth_url.clone()),
+                username: Some(self.os_username.clone()),
+                user_domain_name: Some(self.os_user_domain_name.clone()),
+                password: Some(self.os_password.to_string().into()),
+                project_name: Some(self.os_project_name.clone()),
+                project_domain_name: Some(self.os_project_domain_name.clone()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        AsyncOpenStack::new(&config)
+            .await
+            .map_err(|err| CloudError::CreateClient(err))
+    }
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Clone, serde::Deserialize)]
@@ -240,10 +244,10 @@ mod tests {
 
         let openstack = Openstack::new(&cli);
 
-        let result = openstack.deploy_openstack_instance("testcoin").await;
+        let result = openstack.deploy_openstack_instance("test1").await;
 
         assert!(result.is_ok());
 
-        info!("Result: {}", result.unwrap());
+        info!("IP address: {}", result.unwrap());
     }
 }

@@ -17,5 +17,5 @@ impl DockerCompose {
 }
 
 // environment:
-//   APP_BASE_URL: "https://my-subchain.velasubchains.com"
-//   APP_NODE_URL: "https://my-subchain.velasubchains.com/rpc"
+//   APP_BASE_URL: "https://my-subchain.velasocean.com"
+//   APP_NODE_URL: "https://my-subchain.velasocean.com/rpc"

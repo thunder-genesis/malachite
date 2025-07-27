@@ -6,10 +6,14 @@ test-executable-bin
 --os-username=admin
 --os-password=admin
 --os-network-id
-0f6b60df-3e6d-4551-9941-a4ce3a6f8a5d
+7e53d7ca-0923-4450-842a-5dca32ff2ee2
 --os-image-id
-4cc02ad4-490b-45b6-8b19-1d9e40ec2c3b
+8526419d-6f25-4130-b1db-71be88519059
 --os-flavor-id
 d3
 --os-ssh-pubkey-name
-maksimv_tiraelpc
+test-ssh-key
+--ssh-secret-key
+test/ssh-key
+--ssh-bootstrap-script
+scripts/bootstrap.sh
