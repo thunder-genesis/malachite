@@ -80,8 +80,17 @@ mod tests {
             include_bytes!("../scripts/bootstrap.sh").to_vec(),
         );
 
+        let subchain_id = 0x5739;
+        let velas_rpc_url = "https://rpc.velas.com";
+        let bridge_bind_address = "0.0.0.0:8545";
+        let docker_compose = DockerCompose::new(
+            "testchain",
+            "velasocean.com",
+            subchain_id,
+            velas_rpc_url,
+            bridge_bind_address,
+        );
         let socket: SocketAddr = "10.35.48.74:22".parse().unwrap();
-        let docker_compose = DockerCompose::new("testchain", "velasocean.com");
         let bridge_keypair =
             include_str!("../test/DBAFnAjY7EucVizMaguyXK2N3HyaWNyVcNqBYeRPd1JP.json").to_string();
 

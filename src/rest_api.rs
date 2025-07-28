@@ -2,20 +2,17 @@ use std::net::Ipv4Addr;
 
 use crate::{
     context::Context,
-    docker::DockerCompose,
     eth_contract::SubchainDB::SubchainStatus,
     subchain_transaction::{ChainID, SubchainConfig, evm_state_subchain_account},
     velas_network::VelasRpcError,
 };
 use actix_web::{
-    HttpResponse, HttpResponseBuilder, Responder, ResponseError,
+    HttpResponse, HttpResponseBuilder, ResponseError,
     body::BoxBody,
-    get,
     http::StatusCode,
     post,
     web::{Data, Json},
 };
-use askama::Template;
 use serde_json::json;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair as SolKeypair, signer::Signer as _};
 use tracing::{error, info};
@@ -215,12 +212,6 @@ async fn run_create_subchain(
     info!("Expiration timestamp {active_until} is set for Subchain {chain_id}");
 
     Ok(())
-}
-
-#[get("/debug")]
-async fn debug() -> impl Responder {
-    let result = DockerCompose::new("my-chain", "velasocean.com").render().unwrap();
-    HttpResponse::Ok().body(result)
 }
 
 #[cfg(test)]

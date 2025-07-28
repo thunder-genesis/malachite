@@ -60,10 +60,6 @@ pub fn create_app(
 > {
     App::new()
         .app_data(context)
-        .service(
-            web::scope("/v1")
-                .service(rest_api::create_subchain)
-                .service(rest_api::debug),
-        )
+        .service(web::scope("/v1").service(rest_api::create_subchain))
         .default_service(web::get().to(|| async { "This is default service stub" }))
 }
