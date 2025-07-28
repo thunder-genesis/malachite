@@ -1,4 +1,5 @@
 mod alert;
+mod bootstrapper;
 mod cli;
 mod cloudflare;
 mod context;

@@ -4,10 +4,12 @@ services:
     container_name: subchain-bridge
     ports:
       - "8545:8545"
+    volumes:
+      - bridge-volume:/opt/bridge
     networks:
-      - my_network
+      - my-network
   explorer:
-    image: ethereum-lite-explorer
+    image: ghcr.io/velas/ethereum-lite-explorer:latest
     container_name: explorer
     environment:
       APP_BASE_URL: {{ app_base_url }}
@@ -15,8 +17,14 @@ services:
     ports:
       - "80:80"
     networks:
-      - my_network
-
+      - my-network
 networks:
-  my_network:
+  my-network:
     driver: bridge
+volumes:
+  bridge-volume:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${PWD}/bridge
