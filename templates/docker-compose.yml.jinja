@@ -2,10 +2,10 @@ services:
   subchain-bridge:
     image: ghcr.io/velas/velas-subchain-bridge
     environment:
-      - KEYPAIR={{ keypair }}
-      - VELAS_RPC_URL={{ velas_rpc_url }}
-      - BRIDGE_BIND_ADDRESS={{ bridge_bind_address }}
-      - SUBCHAIN_ID={{ subchain_id }}
+      KEYPAIR: {{ keypair }}
+      VELAS_RPC_URL: {{ velas_rpc_url }}
+      BRIDGE_BIND_ADDRESS: {{ bridge_bind_address }}
+      SUBCHAIN_ID: {{ subchain_id }}
     container_name: subchain-bridge
     ports:
       - "8545:8545"
