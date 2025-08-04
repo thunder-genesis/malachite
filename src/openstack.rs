@@ -176,7 +176,7 @@ impl Openstack {
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }
 
-        return Err(CloudError::Timeout);
+        Err(CloudError::Timeout)
     }
 
     async fn create_client(&self) -> Result<AsyncOpenStack, CloudError> {
@@ -196,7 +196,7 @@ impl Openstack {
 
         AsyncOpenStack::new(&config)
             .await
-            .map_err(|err| CloudError::CreateClient(err))
+            .map_err(CloudError::CreateClient)
     }
 }
 
