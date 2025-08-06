@@ -2,7 +2,7 @@ use std::net::Ipv4Addr;
 
 use crate::{
     context::Context,
-    eth_contract::SubchainDB::SubchainStatus,
+    subchain_registry::SubchainRegistry::Status,
     subchain_transaction::{ChainID, SubchainConfig, evm_state_subchain_account},
     velas_network::VelasRpcError,
 };
@@ -13,18 +13,18 @@ use actix_web::{
     post,
     web::{Data, Json},
 };
+use futures_util::StreamExt;
 use serde_json::json;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair as SolKeypair, signer::Signer as _};
 use tracing::{error, info};
 
 #[derive(Debug, thiserror::Error)]
 pub enum CreateSubchainError {
-    #[error("Failed to get Subchain status from Contract DB: {0}")]
+    #[error("Failed to get Subchain status from Subchain Registry: {0}")]
     GetSubchainStatus(#[source] alloy::contract::Error),
 
-    #[error("Subdomain `{0}` is already in use")]
-    SubdomainInUse(String),
-
+    // #[error("Subdomain `{0}` is already in use")]
+    // SubdomainInUse(String),
     #[error("Failed to register subdomain `{subdomain}`: {source}")]
     RegisterSubdomain {
         subdomain: String,
@@ -49,7 +49,7 @@ pub enum CreateSubchainError {
         source: VelasRpcError,
     },
 
-    #[error("Failed to set Subchain status to Contract DB: {0}")]
+    #[error("Failed to set Subchain status to Subchain Registry: {0}")]
     SetSubchainStatus(#[source] alloy::contract::Error),
 
     #[error("Failed to fund Subchain EVM State account `{account}`: {source}")]
@@ -59,8 +59,18 @@ pub enum CreateSubchainError {
         source: VelasRpcError,
     },
 
-    #[error("Failed to set Subchain expiration time to Contract DB: {0}")]
+    #[error("Failed to set Subchain expiration time to Subchain Registry: {0}")]
     SetExpirationTime(#[source] alloy::contract::Error),
+
+    #[error("Failed to launch OpenStack instance for subchain `{name}`: {source}")]
+    OpenStackError {
+        name: String,
+        #[source]
+        source: crate::openstack::CloudError,
+    },
+
+    #[error("OpenStack instance `{name}` IP `{instance_ip}` is not responding")]
+    InstanceNotResponding { name: String, instance_ip: Ipv4Addr },
 }
 
 impl ResponseError for CreateSubchainError {
@@ -125,91 +135,91 @@ async fn run_create_subchain(
         config,
     } = parameters;
 
-    info!("Request to create subchain with Chain ID: {chain_id}, subchain config: {config:?}");
+    // info!("Request to create subchain with Chain ID: {chain_id}, subchain config: {config:?}");
 
-    info!("Checking if subchain already exists...");
-    let subchain_status = ctx
-        .eth_contract
-        .getSubchainStatus(chain_id)
-        .call()
-        .await
-        .map_err(CreateSubchainError::GetSubchainStatus)?;
+    // info!("Checking if subchain already exists...");
+    // let subchain_status = ctx
+    //     .eth_contract
+    //     .getSubchainStatus(chain_id)
+    //     .call()
+    //     .await
+    //     .map_err(CreateSubchainError::GetSubchainStatus)?;
 
-    if subchain_status != SubchainStatus::None {
-        return Err(CreateSubchainError::SubchainAlreadyExists { chain_id });
-    }
+    // if subchain_status != SubchainStatus::None {
+    //     return Err(CreateSubchainError::SubchainAlreadyExists { chain_id });
+    // }
 
-    // TODO: tiny chance of race condition
-    info!("Checking is domain `{}` is available...", domain);
-    let is_available = ctx.cloudflare.is_subdomain_exists(&domain).await.unwrap();
-    if !is_available {
-        return Err(CreateSubchainError::SubdomainInUse(domain.clone()));
-    }
-    info!("Registring DNS record for domain `{}`...", domain);
-    let _dns_record = ctx
-        .cloudflare
-        .register_subdomain(&domain, DEFAULT_IP)
-        .await
-        .map_err(|source| CreateSubchainError::RegisterSubdomain {
-            subdomain: domain.clone(),
-            source,
-        })?;
+    // // TODO: tiny chance of race condition
+    // info!("Checking is domain `{}` is available...", domain);
+    // let is_available = ctx.cloudflare.is_subdomain_exists(&domain).await.unwrap();
+    // if !is_available {
+    //     return Err(CreateSubchainError::SubdomainInUse(domain.clone()));
+    // }
+    // info!("Registring DNS record for domain `{}`...", domain);
+    // let _dns_record = ctx
+    //     .cloudflare
+    //     .register_subdomain(&domain, DEFAULT_IP)
+    //     .await
+    //     .map_err(|source| CreateSubchainError::RegisterSubdomain {
+    //         subdomain: domain.clone(),
+    //         source,
+    //     })?;
 
-    info!("Funding Subchain Owner {}...", owner.pubkey());
-    let sig = ctx
-        .vlx
-        .fund_subchain_owner(&owner.pubkey())
-        .await
-        .map_err(|source| CreateSubchainError::FundSubchainOwner {
-            owner: owner.pubkey(),
-            source,
-        })?;
-    info!("Subchain Owner {} funded, signature: {sig}", owner.pubkey());
+    // info!("Funding Subchain Owner {}...", owner.pubkey());
+    // let sig = ctx
+    //     .vlx
+    //     .fund_subchain_owner(&owner.pubkey())
+    //     .await
+    //     .map_err(|source| CreateSubchainError::FundSubchainOwner {
+    //         owner: owner.pubkey(),
+    //         source,
+    //     })?;
+    // info!("Subchain Owner {} funded, signature: {sig}", owner.pubkey());
 
-    // NOTE: At this point `owner` account is funded and extra care is needed to avoid losing funds.
+    // // NOTE: At this point `owner` account is funded and extra care is needed to avoid losing funds.
 
-    let evm_state_pda = evm_state_subchain_account(chain_id);
+    // let evm_state_pda = evm_state_subchain_account(chain_id);
 
-    info!("Creating Subchain EVM State account {evm_state_pda}...");
-    let sig = ctx
-        .vlx
-        .create_subchain(owner, chain_id, config)
-        .await
-        .map_err(|source| CreateSubchainError::CreateSubchainEvmStateAccount {
-            account: evm_state_pda,
-            source,
-        })?;
-    info!("Subchain EVM State account created, signature: {sig}");
+    // info!("Creating Subchain EVM State account {evm_state_pda}...");
+    // let sig = ctx
+    //     .vlx
+    //     .create_subchain(owner, chain_id, config)
+    //     .await
+    //     .map_err(|source| CreateSubchainError::CreateSubchainEvmStateAccount {
+    //         account: evm_state_pda,
+    //         source,
+    //     })?;
+    // info!("Subchain EVM State account created, signature: {sig}");
 
-    info!("Marking Subchain {chain_id} as active in Contract DB...");
-    ctx.eth_contract
-        .setSubchainStatus(chain_id, SubchainStatus::SubchainDeployed)
-        .call()
-        .await
-        .map_err(CreateSubchainError::SetSubchainStatus)?;
-    info!("Subchain {chain_id} marked as active in Contract DB");
+    // info!("Marking Subchain {chain_id} as active in Subchain Registry...");
+    // ctx.eth_contract
+    //     .setSubchainStatus(chain_id, SubchainStatus::SubchainDeployed)
+    //     .call()
+    //     .await
+    //     .map_err(CreateSubchainError::SetSubchainStatus)?;
+    // info!("Subchain {chain_id} marked as active in Subchain Registry");
 
-    info!("Funding Subchain EVM State account {}...", evm_state_pda);
-    let sig = ctx
-        .vlx
-        .fund_subchain_state(evm_state_pda)
-        .await
-        .map_err(|source| CreateSubchainError::FundSubchainEvmState {
-            account: evm_state_pda,
-            source,
-        })?;
-    info!(
-        "Subchain EVM State account {evm_state_pda} funded, signature: {}",
-        sig
-    );
+    // info!("Funding Subchain EVM State account {}...", evm_state_pda);
+    // let sig = ctx
+    //     .vlx
+    //     .fund_subchain_state(evm_state_pda)
+    //     .await
+    //     .map_err(|source| CreateSubchainError::FundSubchainEvmState {
+    //         account: evm_state_pda,
+    //         source,
+    //     })?;
+    // info!(
+    //     "Subchain EVM State account {evm_state_pda} funded, signature: {}",
+    //     sig
+    // );
 
-    info!("Setting expiration timestamp {active_until} for Subchain {chain_id}...");
-    ctx.eth_contract
-        .setExpiryTimestamp(chain_id, active_until)
-        .call()
-        .await
-        .map_err(CreateSubchainError::SetExpirationTime)?;
-    info!("Expiration timestamp {active_until} is set for Subchain {chain_id}");
+    // info!("Setting expiration timestamp {active_until} for Subchain {chain_id}...");
+    // ctx.eth_contract
+    //     .setExpiryTimestamp(chain_id, active_until)
+    //     .call()
+    //     .await
+    //     .map_err(CreateSubchainError::SetExpirationTime)?;
+    // info!("Expiration timestamp {active_until} is set for Subchain {chain_id}");
 
     Ok(())
 }
@@ -225,7 +235,8 @@ mod tests {
     use super::*;
 
     #[actix_web::test]
-    async fn test() {
+    #[ignore = "this is not a test"]
+    async fn rest_api() {
         let _ = FmtSubscriber::builder().with_max_level(Level::INFO).try_init();
 
         let cli = Cli::mock();

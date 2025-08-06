@@ -7,8 +7,8 @@ use crate::{
     bootstrapper::Bootstrapper,
     cli::Cli,
     cloudflare::Cloudflare,
-    eth_contract::{SubchainRegistry, SubchainRegistryImpl},
     openstack::Openstack,
+    subchain_registry::{SubchainRegistry, SubchainRegistryImpl},
     velas_network::VelasNetwork,
 };
 
@@ -36,8 +36,8 @@ pub enum ContextError {
 
 pub struct Context {
     pub tg_alert: TgAlert,
-    pub eth_contract: SubchainRegistryImpl,
-    pub vlx: VelasNetwork,
+    pub subchain_registry: SubchainRegistryImpl,
+    pub velas_network: VelasNetwork,
     pub cloudflare: Cloudflare,
     pub openstack: Openstack,
     pub bootstrapper: Bootstrapper,
@@ -52,12 +52,12 @@ impl Context {
             TgAlert::new_empty()
         };
 
-        let eth_contract = {
+        let subchain_registry = {
             let eth_provider = ProviderBuilder::new()
-                .wallet(cli.smc_signer.clone())
-                .connect(&cli.smc_network_rpc)
+                .wallet(cli.registry_signer.clone())
+                .connect(&cli.registry_network_rpc)
                 .await?;
-            SubchainRegistry::new(cli.smc_address, eth_provider)
+            SubchainRegistry::new(cli.registry_address, eth_provider)
         };
 
         let velas_network = {
@@ -94,8 +94,8 @@ impl Context {
 
         Ok(Self {
             tg_alert,
-            eth_contract,
-            vlx: velas_network,
+            subchain_registry,
+            velas_network,
             cloudflare,
             openstack,
             bootstrapper,

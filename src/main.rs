@@ -1,12 +1,15 @@
+#![allow(unused)]
+
 mod alert;
 mod bootstrapper;
 mod cli;
 mod cloudflare;
 mod context;
 mod docker;
-mod eth_contract;
+mod main_loop;
 mod openstack;
 mod rest_api;
+mod subchain_registry;
 mod subchain_transaction;
 mod velas_network;
 

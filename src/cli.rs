@@ -8,15 +8,15 @@ pub struct Cli {
     #[arg(long, env, value_name = "SOCK_ADDR", default_value = "0.0.0.0:1987")]
     pub bind_address: SocketAddrV4,
 
-    /// Subchain Manager Contract Ethereum RPC URL endpoint
+    /// Subchain Registry Contract Ethereum RPC URL HTTP(S) endpoint
     #[arg(long, env, value_name = "URL", value_hint = clap::ValueHint::Url, default_value = "http://127.0.0.1:8545")]
-    pub smc_network_rpc: String,
+    pub registry_network_rpc: String,
 
-    /// Subchain Manager Contract Address
+    /// Subchain Registry Contract Address
     #[arg(long, env, value_name = "PUBLIC_KEY")]
-    pub smc_address: Address,
+    pub registry_address: Address,
 
-    /// Private Key for interracting with SMC
+    /// Private Key for interracting with Subchain Registry
     #[arg(
         long,
         env,
@@ -24,8 +24,9 @@ pub struct Cli {
         value_name = "PRIVATE_KEY"
     )]
     #[redact(fixed = 8)]
-    pub smc_signer: PrivateKeySigner,
+    pub registry_signer: PrivateKeySigner,
 
+    /// Velas Node RPC URL
     #[arg(long, env, value_name = "URL", value_hint = clap::ValueHint::Url, default_value = "http://127.0.0.1:8899")]
     pub vlx_network_rpc: String,
 

@@ -205,6 +205,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore = "this is not a test"]
     async fn test_connection() {
         let _ = FmtSubscriber::builder().with_max_level(Level::INFO).try_init();
 

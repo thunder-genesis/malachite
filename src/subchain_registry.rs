@@ -18,12 +18,12 @@ pub type SubchainRegistryImpl = SubchainRegistry::SubchainRegistryInstance<
     >,
 >;
 
+// https://github.com/askucher/velas-subchain-manager/blob/067923b91b1c20c2c40d95dae555df663c158264/contracts/src/SubchainRegistry.sol
 sol! {
-    // SPDX-License-Identifier: MIT
-    pragma solidity =0.7.6;
-
     #[sol(rpc)]
     contract SubchainRegistry {
+
+        #[derive(Debug, PartialEq, Eq)]
         enum Status {
             Pending, // Newly registered, awaiting activation
             Active, // Active and operational
