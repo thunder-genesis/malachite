@@ -5,7 +5,7 @@ use alloy::providers::fillers::{
 use alloy::providers::{Identity, RootProvider};
 use alloy::sol;
 
-pub type SubchainDBImpl = SubchainDB::SubchainDBInstance<
+pub type SubchainRegistryImpl = SubchainRegistry::SubchainRegistryInstance<
     FillProvider<
         JoinFill<
             JoinFill<
@@ -23,61 +23,55 @@ sol! {
     pragma solidity =0.7.6;
 
     #[sol(rpc)]
-    contract SubchainDB {
-
-        #[derive(Debug, PartialEq, Eq)]
-        enum SubchainStatus {
-            // Subchain does not exist, default value
-            None,
-            // The service has paid the fee and deployed the subchain
-            SubchainDeployed,
-            // The service has deployed the subchain bridge
-            Running,
-            // The bridge has been stopped
-            Stopped
+    contract SubchainRegistry {
+        enum Status {
+            Pending, // Newly registered, awaiting activation
+            Active, // Active and operational
+            Suspended, // Temporarily suspended
+            Deleted // Deleted or deactivated
         }
 
-        // ---PUBLIC INTERFACE BEGIN---
-        function getSubchainStatus(uint64 chainId) public view returns (SubchainStatus) {
-            return subchainStatus[chainId];
-        }
+        // Emitted when a new subchain is registered
+        event SubchainRegistered(uint256 indexed index, address indexed owner);
+        // Emitted when a subchain's status changes
+        event StatusChanged(uint256 indexed index, Status newStatus);
+        // Emitted when a monthly payment is made to extend active period
+        event MonthlyPayment(uint256 indexed index, uint256 newActiveTill);
 
-        function setSubchainStatus(uint64 chainId, SubchainStatus status) public {
-            subchainStatus[chainId] = status;
-        }
+        /// @notice Set the status of a subchain
+        /// @param index The index of the subchain
+        /// @param newStatus The new status to set
+        function setStatus(uint256 index, Status newStatus);
 
-        function getExpiryTimestamp(uint64 chainId) public view returns (uint256) {
-            return activeUntil[chainId];
-        }
+        // --- Read helpers ---
+        /// @notice Get the total number of registered subchains
+        /// @return The count of subchains
+        function totalSubchains() external view returns (uint256);
 
-        function setExpiryTimestamp(uint64 chainId, uint64 activeUntil) public {
-            subchainStatus[chainId] = status;
-        }
-
-        function getDomainName(uint64 chainId) public view returns (string memory) {
-            return domainName[chainId];
-        }
-
-        function setDomainName(uint64 chainId, string memory name) public {
-            domainName[chainId] = name;
-        }
-        // ---PUBLIC INTERFACE END---
-
-        // SubchainID => SubchainStatus
-        mapping(uint64 => SubchainStatus) private subchainStatus;
-
-        // SubchainID => Unix Timestamp
-        mapping(uint64 => uint256) private activeUntil;
-
-        // SubchainID => Domain Name
-        mapping(uint64 => string) private domainName;
+        /// @notice Get details of a subchain by index
+        /// @param index The index of the subchain
+        /// @return name The name of the subchain
+        /// @return domain The domain of the subchain
+        /// @return symbol The symbol of the subchain
+        /// @return metadataUrl The metadata URL of the subchain
+        /// @return chainId The chain ID of the subchain
+        /// @return owner The owner address of the subchain
+        /// @return status The current status of the subchain
+        /// @return registrationTime The registration timestamp
+        /// @return activeTill The timestamp until which the subchain is active
+        function getSubchain(uint256 index)
+            external
+            view
+            returns (
+                string memory name,
+                string memory domain,
+                string memory symbol,
+                string memory metadataUrl,
+                uint256 chainId,
+                address owner,
+                Status status,
+                uint256 registrationTime,
+                uint256 activeTill
+            );
     }
 }
-
-// struct SubchainState {
-//     payments: Vec<Payment>,
-//     balance: USDT,
-// }
-
-// BTreeMap<ChainID, SubchainState>
-// BTreeMap<DomainName, ChainID>

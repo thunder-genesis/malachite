@@ -4,9 +4,11 @@ use solana_sdk::{signature::Keypair as SolKeypair, signer::EncodableKey as _};
 
 use crate::{
     alert::TgAlert,
+    bootstrapper::Bootstrapper,
     cli::Cli,
     cloudflare::Cloudflare,
-    eth_contract::{SubchainDB, SubchainDBImpl},
+    eth_contract::{SubchainRegistry, SubchainRegistryImpl},
+    openstack::Openstack,
     velas_network::VelasNetwork,
 };
 
@@ -23,13 +25,22 @@ pub enum ContextError {
 
     #[error("Failed to create Cloudflare context: {0}")]
     CloudflareError(#[from] cloudflare::framework::Error),
+
+    #[error("Failed to read file `{file_name}`: {source}")]
+    FailedToReadFile {
+        file_name: String,
+        #[source]
+        source: std::io::Error,
+    },
 }
 
 pub struct Context {
     pub tg_alert: TgAlert,
-    pub eth_contract: SubchainDBImpl,
+    pub eth_contract: SubchainRegistryImpl,
     pub vlx: VelasNetwork,
     pub cloudflare: Cloudflare,
+    pub openstack: Openstack,
+    pub bootstrapper: Bootstrapper,
 }
 
 impl Context {
@@ -46,7 +57,7 @@ impl Context {
                 .wallet(cli.smc_signer.clone())
                 .connect(&cli.smc_network_rpc)
                 .await?;
-            SubchainDB::new(cli.smc_address, eth_provider)
+            SubchainRegistry::new(cli.smc_address, eth_provider)
         };
 
         let velas_network = {
@@ -61,6 +72,24 @@ impl Context {
             )
         };
 
+        let openstack = Openstack::new(cli);
+
+        let bootstrapper = {
+            let ssh_private_key = std::fs::read_to_string(&cli.ssh_secret_key).map_err(|source| {
+                ContextError::FailedToReadFile {
+                    file_name: cli.ssh_secret_key.to_string_lossy().into_owned(),
+                    source,
+                }
+            })?;
+            let ssh_bootstrap_script = std::fs::read(&cli.ssh_bootstrap_script).map_err(|source| {
+                ContextError::FailedToReadFile {
+                    file_name: cli.ssh_bootstrap_script.to_string_lossy().into_owned(),
+                    source,
+                }
+            })?;
+            Bootstrapper::new(ssh_private_key, ssh_bootstrap_script)
+        };
+
         let cloudflare = Cloudflare::new(&cli.cloudflare_api_token, &cli.domain)?;
 
         Ok(Self {
@@ -68,6 +97,8 @@ impl Context {
             eth_contract,
             vlx: velas_network,
             cloudflare,
+            openstack,
+            bootstrapper,
         })
     }
 }

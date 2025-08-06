@@ -111,7 +111,7 @@ async fn create_subchain(
     Ok(())
 }
 
-const DEFAULT_IP: Ipv4Addr = Ipv4Addr::new(127, 0, 0, 1);
+const DEFAULT_IP: Ipv4Addr = Ipv4Addr::LOCALHOST;
 
 async fn run_create_subchain(
     ctx: Data<Context>,
