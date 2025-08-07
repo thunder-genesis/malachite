@@ -1,12 +1,13 @@
 #[derive(Debug, askama::Template)]
 #[template(path = "docker-compose.yml.jinja", escape = "none")]
 pub struct DockerCompose {
-    pub app_base_url: String,
-    pub app_node_url: String,
-    pub subchain_id: u64,
-    pub keypair: String,
-    pub velas_rpc_url: String,
-    pub bridge_bind_address: String,
+    app_base_url: String,
+    app_node_url: String,
+    subchain_id: u64,
+    keypair: String,
+    velas_rpc_url: String,
+    bridge_bind_address: String,
+    exposing_port: String,
 }
 
 impl DockerCompose {
@@ -15,7 +16,6 @@ impl DockerCompose {
         domain: impl AsRef<str>,
         subchain_id: u64,
         velas_rpc_url: impl AsRef<str>,
-        bridge_bind_address: impl AsRef<str>,
     ) -> Self {
         let subdomain = subdomain.as_ref();
         let domain = domain.as_ref();
@@ -25,7 +25,8 @@ impl DockerCompose {
             subchain_id,
             keypair: "/opt/bridge/keypair.json".to_string(),
             velas_rpc_url: velas_rpc_url.as_ref().to_string(),
-            bridge_bind_address: bridge_bind_address.as_ref().to_string(),
+            bridge_bind_address: "0.0.0.0:8545".to_string(),
+            exposing_port: "8545:8545".to_string(),
         }
     }
 }

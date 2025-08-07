@@ -12,6 +12,7 @@ use crate::{
     cli::Cli,
     cloudflare::Cloudflare,
     context::Context,
+    docker::DockerCompose,
     openstack::Openstack,
     rest_api::CreateSubchainError,
     subchain_registry::SubchainRegistry::{self, Status},
@@ -223,6 +224,14 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     info!("Waiting for SSH to become available in {SSH_AWAITING_SECONDS} seconds...");
     tokio::time::sleep(Duration::from_secs(SSH_AWAITING_SECONDS)).await;
 
+    info!("Bootstrapping Subchain instance `{name}`...");
+    let docker_compose = DockerCompose::new(domain, "velasocean.com", chain_id, "https://rpc.velas.com");
+    let ssh_socket = (instance_ip, 22).into();
+    ctx.bootstrapper
+        .bootstrap(ssh_socket, docker_compose, &owner)
+        .unwrap();
+    info!("Subchain bridge instance bootstrapped successfully");
+
     info!("Marking Subchain {chain_id} as active in Subchain Registry...");
     ctx.subchain_registry
         .setStatus(subchain_idx, Status::Active)
@@ -241,21 +250,5 @@ mod tests {
     #[tokio::test]
     async fn main_loop_test() {
         main_loop().await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn ping() {
-        for _ in 0..20 {
-            let ip_address = "8.8.8.8".parse().unwrap();
-            let ping = surge_ping::ping(ip_address, &[]).await;
-            if let Ok((packet, duration)) = ping {
-                println!("Packet: {packet:?}");
-                println!("{} ms", duration.as_millis());
-            } else {
-                println!("Error");
-            }
-
-            tokio::time::sleep(Duration::from_secs(5)).await;
-        }
     }
 }

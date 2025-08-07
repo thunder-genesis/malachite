@@ -4,6 +4,7 @@ use std::{
 };
 
 use openstack_sdk::api::image::v2::info;
+use solana_sdk::signature::Keypair as SolKeypair;
 use ssh2::Session;
 use std::net::TcpStream;
 use tracing::{error, info};
@@ -101,7 +102,7 @@ impl Bootstrapper {
         &self,
         instance: SocketAddr,
         subchain: DockerCompose,
-        bridge_keypair: String,
+        bridge_keypair: &SolKeypair,
     ) -> Result<(), BootstrapError> {
         info!("Opening SSH session to remote instance: {}...", instance);
         let tcp = TcpStream::connect(instance).map_err(BootstrapError::InstanceUnavailable)?;
@@ -125,6 +126,7 @@ impl Bootstrapper {
         self.ssh_scp(&mut s, "docker-compose.yml", subchain.to_string().as_bytes())?;
 
         info!("Copying `keypair.json` to remote instance...");
+        let bridge_keypair = serde_json::to_string(bridge_keypair.to_bytes().as_ref()).unwrap();
         self.ssh_scp(&mut s, "keypair.json", bridge_keypair.as_bytes())?;
 
         let mut channel = s
@@ -197,6 +199,7 @@ impl Bootstrapper {
 
 #[cfg(test)]
 mod tests {
+    use solana_sdk::signer::EncodableKey;
     use tracing::Level;
     use tracing_subscriber::FmtSubscriber;
 
@@ -211,23 +214,16 @@ mod tests {
 
         let boot = Bootstrapper::new(
             include_str!("../test/ssh-key").to_string(),
-            include_bytes!("../scripts/bootstrap.sh").to_vec(),
+            include_bytes!("../bootstrap/bootstrap.sh").to_vec(),
         );
 
         let subchain_id = 0x5739;
         let velas_rpc_url = "https://rpc.velas.com";
-        let bridge_bind_address = "0.0.0.0:8545";
-        let docker_compose = DockerCompose::new(
-            "testchain",
-            "velasocean.com",
-            subchain_id,
-            velas_rpc_url,
-            bridge_bind_address,
-        );
+        let docker_compose = DockerCompose::new("testchain", "velasocean.com", subchain_id, velas_rpc_url);
         let socket: SocketAddr = "10.35.48.74:22".parse().unwrap();
         let bridge_keypair =
-            include_str!("../test/DBAFnAjY7EucVizMaguyXK2N3HyaWNyVcNqBYeRPd1JP.json").to_string();
+            SolKeypair::read_from_file("../test/DBAFnAjY7EucVizMaguyXK2N3HyaWNyVcNqBYeRPd1JP.json").unwrap();
 
-        let _result = boot.bootstrap(socket, docker_compose, bridge_keypair).unwrap();
+        let _result = boot.bootstrap(socket, docker_compose, &bridge_keypair).unwrap();
     }
 }

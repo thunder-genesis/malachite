@@ -8,7 +8,7 @@ services:
       SUBCHAIN_ID: {{ subchain_id }}
     container_name: subchain-bridge
     ports:
-      - "8545:8545"
+      - {{ exposing_port }}
     volumes:
       - bridge-volume:/opt/bridge
     networks:

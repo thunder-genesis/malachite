@@ -1,5 +1,4 @@
 docs/
-scripts/
 target/
 test-ledger/
 .env
