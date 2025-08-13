@@ -225,7 +225,12 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     tokio::time::sleep(Duration::from_secs(SSH_AWAITING_SECONDS)).await;
 
     info!("Bootstrapping Subchain instance `{name}`...");
-    let docker_compose = DockerCompose::new(domain, "velasocean.com", chain_id, "https://rpc.velas.com");
+    let docker_compose = DockerCompose::new(
+        domain.clone(),
+        ctx.domain.clone(),
+        chain_id,
+        &ctx.vlx_network_for_bridge,
+    );
     let ssh_socket = (instance_ip, 22).into();
     ctx.bootstrapper
         .bootstrap(ssh_socket, docker_compose, &owner)

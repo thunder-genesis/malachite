@@ -26,9 +26,13 @@ pub struct Cli {
     #[redact(fixed = 8)]
     pub registry_signer: PrivateKeySigner,
 
-    /// Velas Node RPC URL
+    /// Velas Node RPC URL used by this service
     #[arg(long, env, value_name = "URL", value_hint = clap::ValueHint::Url, default_value = "http://127.0.0.1:8899")]
     pub vlx_network_rpc: String,
+
+    /// Velas Node RPC URL used by subchain bridge
+    #[arg(long, env, value_name = "URL", value_hint = clap::ValueHint::Url, default_value = "http://127.0.0.1:8899")]
+    pub vlx_network_for_bridge: String,
 
     /// Hot wallet for deploying subchains and funding fee accounts
     #[arg(

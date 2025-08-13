@@ -41,6 +41,8 @@ pub struct Context {
     pub cloudflare: Cloudflare,
     pub openstack: Openstack,
     pub bootstrapper: Bootstrapper,
+    pub domain: String,
+    pub vlx_network_for_bridge: String,
 }
 
 impl Context {
@@ -99,6 +101,8 @@ impl Context {
             cloudflare,
             openstack,
             bootstrapper,
+            domain: cli.domain.clone(),
+            vlx_network_for_bridge: cli.vlx_network_for_bridge.clone(),
         })
     }
 }
