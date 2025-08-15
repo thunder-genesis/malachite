@@ -60,6 +60,7 @@ async fn main_loop() -> Result<(), ()> {
 
     let context = Context::new(&cli).await.unwrap();
 
+    // TODO: handle other EVM events
     let mut registrations = context
         .subchain_registry
         .SubchainRegistered_filter()
@@ -146,8 +147,8 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
 
     info!("Creating Subchain EVM State account {evm_state_pda}...");
     let config = SubchainConfig {
-        alloc: Default::default(), // TODO: fill alloc with real values
-        whitelisted: Default::default(),
+        alloc: Default::default(),       // TODO: fill alloc with real values
+        whitelisted: Default::default(), // TODO: strict IP?
         hardfork: crate::subchain_transaction::Hardfork::Istanbul,
         network_name: name.clone(),
         token_name: symbol,

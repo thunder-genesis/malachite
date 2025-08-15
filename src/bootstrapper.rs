@@ -111,6 +111,7 @@ impl Bootstrapper {
         s.handshake().map_err(BootstrapError::FailedHandshake)?;
 
         info!("Authenticating SSH session...");
+        // TODO: review security policy of using private key
         s.userauth_pubkey_memory(REMOTE_USERNAME, None, &self.ssh_private_key, None)
             .map_err(BootstrapError::FailedToAuthenticate)?;
 

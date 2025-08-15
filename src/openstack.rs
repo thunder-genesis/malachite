@@ -90,6 +90,7 @@ impl Openstack {
         }
     }
 
+    // TODO: split into creating instance and waiting for it
     /// Deploys an OpenStack instance with the specified name and returns its IP address.
     /// Typically, a delay is required for the instance to become available for ICMP and SSH.
     pub async fn deploy_openstack_instance(&self, instance_name: &str) -> Result<Ipv4Addr, CloudError> {
@@ -102,13 +103,13 @@ impl Openstack {
             .uuid(&self.os_network_id)
             .build()?;
 
+        // TODO: discover ID's by human readable names
         let server = create_api::ServerBuilder::default()
             .image_ref(&self.os_image_id)
             .flavor_ref(&self.os_flavor_id)
             .name(instance_name)
             .networks(create_api::ServerNetworks::F1(vec![networks]))
             .key_name(&self.os_ssh_pubkey_name)
-            .admin_pass("ubuntuw")
             .build()?;
 
         let instance = create_api::RequestBuilder::default().server(server).build()?;
@@ -135,6 +136,7 @@ impl Openstack {
 
         let mut state = InstanceStatus::default();
 
+        // TODO: use proper retry policy
         for n in 1..100 {
             info!("Requesting Instance details ({n})...");
             let instance_details: serde_json::Value = details_req

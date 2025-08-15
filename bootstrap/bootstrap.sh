@@ -11,6 +11,6 @@ sudo apt install -y docker.io docker-compose
 mkdir bridge
 mv keypair.json bridge/
 sudo docker-compose up -d
-shred -u bridge/keypair.json
-rm -rf bridge
+# shred -u bridge/keypair.json
+# rm -rf bridge
 # TODO: put additional admin SSH pubkeys

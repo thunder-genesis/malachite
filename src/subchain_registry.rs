@@ -24,6 +24,7 @@ sol! {
     contract SubchainRegistry {
 
         #[derive(Debug, PartialEq, Eq)]
+        // TODO: detalization of statuses
         enum Status {
             Pending, // Newly registered, awaiting activation
             Active, // Active and operational

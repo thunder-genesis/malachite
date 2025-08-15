@@ -54,6 +54,7 @@ impl Context {
             TgAlert::new_empty()
         };
 
+        // TODO: dyn Trait for testability
         let subchain_registry = {
             let eth_provider = ProviderBuilder::new()
                 .wallet(cli.registry_signer.clone())
