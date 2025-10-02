@@ -9,7 +9,6 @@ actix-web = "4.11.0"
 alloy = "1.0.22"
 anyhow = "1"
 askama = "0.14.0"
-base64 = "0.22.1"
 borsh = "1.5"
 dotenvy = "0.15.7"
 clap = { version = "4.5.41", features = ["env", "derive"] }
@@ -24,6 +23,7 @@ solana-client = { version = "2.3.1"}
 solana-sdk = { version = "2.3.1", features = ["full", "borsh"] }
 ssh2 = "0.9"
 surge-ping = "0.8.2"
+tempfile = "3.20.0"
 thiserror = "2"
 tgbot = "0.39.1"
 tokio = { version = "1.46.1", features = ["rt-multi-thread", "macros"] }

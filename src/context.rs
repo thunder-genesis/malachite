@@ -106,4 +106,8 @@ impl Context {
             vlx_network_for_bridge: cli.vlx_network_for_bridge.clone(),
         })
     }
+
+    pub fn create_native_keypair() -> SolKeypair {
+        SolKeypair::new()
+    }
 }
