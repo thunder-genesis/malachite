@@ -236,7 +236,7 @@ struct Address {
 mod tests {
     use super::*;
 
-    #[actix_web::test]
+    #[tokio::test]
     #[ignore = "this is not a test"]
     async fn test_openstack_module() {
         let cli = Cli::mock();

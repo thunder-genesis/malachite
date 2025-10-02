@@ -6,8 +6,8 @@ mod cli;
 mod cloudflare;
 mod context;
 mod docker;
+mod ipfs;
 mod openstack;
-// mod rest_api;
 mod subchain_registry;
 mod subchain_transaction;
 mod velas_network;
@@ -214,6 +214,8 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     // NOTE: At this point `owner` account is funded and extra care is needed to avoid losing funds.
 
     let evm_state_pda = evm_state_subchain_account(chain_id);
+
+    let metadata = ctx.ipfs.get_file(metadataUrl).await.unwrap(); // TODO: unwrap
 
     info!("Creating Subchain EVM State account {evm_state_pda}...");
     let config = SubchainConfig {

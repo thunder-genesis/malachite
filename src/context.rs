@@ -7,6 +7,7 @@ use crate::{
     bootstrapper::Bootstrapper,
     cli::Cli,
     cloudflare::Cloudflare,
+    ipfs::IpfsClient,
     openstack::Openstack,
     subchain_registry::{SubchainRegistry, SubchainRegistryImpl},
     velas_network::VelasNetwork,
@@ -43,6 +44,7 @@ pub struct Context {
     pub bootstrapper: Bootstrapper,
     pub domain: String,
     pub vlx_network_for_bridge: String,
+    pub ipfs: IpfsClient,
 }
 
 impl Context {
@@ -95,6 +97,8 @@ impl Context {
 
         let cloudflare = Cloudflare::new(&cli.cloudflare_api_token, &cli.domain)?;
 
+        let ipfs = IpfsClient;
+
         Ok(Self {
             tg_alert,
             subchain_registry,
@@ -104,10 +108,7 @@ impl Context {
             bootstrapper,
             domain: cli.domain.clone(),
             vlx_network_for_bridge: cli.vlx_network_for_bridge.clone(),
+            ipfs,
         })
-    }
-
-    pub fn create_native_keypair() -> SolKeypair {
-        SolKeypair::new()
     }
 }
