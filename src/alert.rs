@@ -4,7 +4,7 @@ use tgbot::{
 };
 use uuid::Uuid;
 
-use crate::rest_api::CreateSubchainError;
+use crate::CreateSubchainError;
 
 pub struct TgAlert {
     client: Option<Client>,
