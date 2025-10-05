@@ -11,7 +11,9 @@ borsh = "1.5"
 dotenvy = "0.15.7"
 clap = { version = "4.5.48", features = ["env", "derive"] }
 cloudflare = "0.14.0"
+# futures = "0.3.31"
 futures-util = "0.3.31"
+ipfs-api = { version = "0.17.0", features = ["with-hyper-rustls"], default-features = false }
 ipfs-embed = "0.26.1"
 openstack_sdk = "=0.21.4"
 primitive-types = { git = "https://github.com/velas/parity-common", branch = "bump-borsh", features = ["borsh", "serde"] }

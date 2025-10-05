@@ -7,6 +7,7 @@ mod cloudflare;
 mod context;
 mod docker;
 mod ipfs;
+mod keymanager;
 mod openstack;
 mod subchain_registry;
 mod subchain_transaction;
@@ -159,7 +160,13 @@ async fn main() -> anyhow::Result<()> {
 async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Result<(), CreateSubchainError> {
     info!("Fetching details of new subchain...");
 
-    // TODO: Change contract interface to explicitly return struct
+    let subchain_entry = ctx
+        .subchain_registry
+        .getSubchain(subchain_idx)
+        .call()
+        .await
+        .unwrap();
+
     let SubchainEntry {
         name,
         domain,
@@ -170,12 +177,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
         status,
         registrationTime,
         activeTill,
-    } = ctx
-        .subchain_registry
-        .getSubchain(subchain_idx)
-        .call()
-        .await
-        .unwrap();
+    } = subchain_entry;
 
     info!(
         "New subchain details: \
@@ -199,7 +201,8 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     //     return Err(CreateSubchainError::SubdomainInUse(domain.clone()));
     // }
 
-    let owner = SolKeypair::new();
+    // TODO: remove unwrap
+    let owner = ctx.keypair_manager.create_key().unwrap();
     info!("Funding Subchain Owner {}...", owner.pubkey());
     let sig = ctx
         .velas_network
@@ -210,8 +213,6 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
             source,
         })?;
     info!("Subchain Owner {} funded, signature: {sig}", owner.pubkey());
-
-    // NOTE: At this point `owner` account is funded and extra care is needed to avoid losing funds.
 
     let evm_state_pda = evm_state_subchain_account(chain_id);
 
@@ -318,15 +319,6 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
         .map_err(CreateSubchainError::SetSubchainStatus)?;
     info!("Subchain {chain_id} marked as active in Subchain Registry");
 
+    ctx.keypair_manager.forget_key(&owner.pubkey()).unwrap();
     Ok(())
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-
-//     #[tokio::test]
-//     async fn main_loop_test() {
-//         main().await.unwrap();
-//     }
-// }

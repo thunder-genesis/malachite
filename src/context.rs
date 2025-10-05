@@ -8,6 +8,7 @@ use crate::{
     cli::Cli,
     cloudflare::Cloudflare,
     ipfs::IpfsClient,
+    keymanager::KeypairManager,
     openstack::Openstack,
     subchain_registry::{SubchainRegistry, SubchainRegistryImpl},
     velas_network::VelasNetwork,
@@ -45,6 +46,7 @@ pub struct Context {
     pub domain: String,
     pub vlx_network_for_bridge: String,
     pub ipfs: IpfsClient,
+    pub keypair_manager: KeypairManager,
 }
 
 impl Context {
@@ -99,6 +101,8 @@ impl Context {
 
         let ipfs = IpfsClient;
 
+        let keypair_manager = KeypairManager::default();
+
         Ok(Self {
             tg_alert,
             subchain_registry,
@@ -109,6 +113,7 @@ impl Context {
             domain: cli.domain.clone(),
             vlx_network_for_bridge: cli.vlx_network_for_bridge.clone(),
             ipfs,
+            keypair_manager,
         })
     }
 }
