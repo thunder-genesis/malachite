@@ -55,19 +55,13 @@ impl KeypairManager {
     }
 }
 
-impl Default for KeypairManager {
-    fn default() -> Self {
-        Self
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn test_create_and_forget_key() {
-        let manager = KeypairManager::default();
+        let manager = KeypairManager;
         let keypair = manager.create_key().expect("Failed to create keypair");
         let pubkey = keypair.pubkey();
         let path = keypair_path(&pubkey);

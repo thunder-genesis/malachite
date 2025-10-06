@@ -7,8 +7,8 @@ use crate::{
     bootstrapper::Bootstrapper,
     cli::Cli,
     cloudflare::Cloudflare,
-    ipfs::IpfsClient,
     keymanager::KeypairManager,
+    metadata::MetadataExtractor,
     openstack::Openstack,
     subchain_registry::{SubchainRegistry, SubchainRegistryImpl},
     velas_network::VelasNetwork,
@@ -45,7 +45,7 @@ pub struct Context {
     pub bootstrapper: Bootstrapper,
     pub domain: String,
     pub vlx_network_for_bridge: String,
-    pub ipfs: IpfsClient,
+    pub ipfs: MetadataExtractor,
     pub keypair_manager: KeypairManager,
 }
 
@@ -99,9 +99,9 @@ impl Context {
 
         let cloudflare = Cloudflare::new(&cli.cloudflare_api_token, &cli.domain)?;
 
-        let ipfs = IpfsClient;
+        let ipfs = MetadataExtractor;
 
-        let keypair_manager = KeypairManager::default();
+        let keypair_manager = KeypairManager;
 
         Ok(Self {
             tg_alert,

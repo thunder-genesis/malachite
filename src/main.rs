@@ -1,16 +1,28 @@
 #![allow(unused)]
 
+/// Telegram alers
 mod alert;
+/// Virtual machine initialization with Subchain gateway and explorer
 mod bootstrapper;
+/// Malachite CLI
 mod cli;
+/// Domain names managements for Subchains
 mod cloudflare;
+/// Unbrella for all external API's
 mod context;
+/// Dockerfile templates for new virtual machines
 mod docker;
-mod ipfs;
+/// Create, backup and shred Subchain Owner keypairs
 mod keymanager;
+/// Metadata downloading and contract compiling
+mod metadata;
+/// Virtual machine running and stopping
 mod openstack;
+/// EVM Subchain Manager contract interact
 mod subchain_registry;
+/// Transaction for creating Subchains in Velas Native
 mod subchain_transaction;
+/// Velas Native various transactions and RPC interaction
 mod velas_network;
 
 use std::{net::Ipv4Addr, time::Duration};
@@ -216,7 +228,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
 
     let evm_state_pda = evm_state_subchain_account(chain_id);
 
-    let metadata = ctx.ipfs.get_file(metadataUrl).await.unwrap(); // TODO: unwrap
+    // let metadata = ctx.ipfs.get_file(metadataUrl).await.unwrap(); // TODO: unwrap
 
     info!("Creating Subchain EVM State account {evm_state_pda}...");
     let config = SubchainConfig {
