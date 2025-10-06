@@ -128,6 +128,10 @@ pub struct Cli {
     /// Path to SSH bootstrap script
     #[arg(long, env, value_name = "BASHFILE", value_hint = clap::ValueHint::FilePath)]
     pub ssh_bootstrap_script: PathBuf,
+
+    /// Path to `forge` executable
+    #[arg(long, env, value_name = "BIN", value_hint = clap::ValueHint::FilePath)]
+    pub forge_executable: PathBuf,
 }
 
 #[cfg(test)]

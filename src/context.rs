@@ -45,7 +45,7 @@ pub struct Context {
     pub bootstrapper: Bootstrapper,
     pub domain: String,
     pub vlx_network_for_bridge: String,
-    pub ipfs: MetadataExtractor,
+    pub metadata: MetadataExtractor,
     pub keypair_manager: KeypairManager,
 }
 
@@ -99,7 +99,7 @@ impl Context {
 
         let cloudflare = Cloudflare::new(&cli.cloudflare_api_token, &cli.domain)?;
 
-        let ipfs = MetadataExtractor;
+        let metadata = MetadataExtractor;
 
         let keypair_manager = KeypairManager;
 
@@ -112,7 +112,7 @@ impl Context {
             bootstrapper,
             domain: cli.domain.clone(),
             vlx_network_for_bridge: cli.vlx_network_for_bridge.clone(),
-            ipfs,
+            metadata,
             keypair_manager,
         })
     }

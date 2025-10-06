@@ -25,50 +25,25 @@ mod subchain_transaction;
 /// Velas Native various transactions and RPC interaction
 mod velas_network;
 
-use std::{net::Ipv4Addr, time::Duration};
+use std::{collections::BTreeMap, net::Ipv4Addr, time::Duration};
 
-use alloy::{primitives::Uint, providers::ProviderBuilder};
+use alloy::primitives::Uint;
 use clap::Parser;
 use futures_util::StreamExt as _;
-use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair as SolKeypair, signer::Signer as _};
+use primitive_types::H160;
+use solana_sdk::{pubkey::Pubkey, signer::Signer as _};
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 use crate::{
     cli::Cli,
-    cloudflare::Cloudflare,
     context::Context,
     docker::DockerCompose,
-    openstack::Openstack,
-    // rest_api::CreateSubchainError,
     subchain_registry::SubchainRegistry::{self, Status},
-    subchain_transaction::{SubchainConfig, evm_state_subchain_account},
-    velas_network::VelasNetwork,
+    subchain_transaction::{AllocAccount, SubchainConfig, evm_state_subchain_account},
 };
 
 type SubchainEntry = SubchainRegistry::getSubchainReturn;
-type SubchainRegistryImpl = SubchainRegistry::SubchainRegistryInstance<
-    alloy::providers::fillers::FillProvider<
-        alloy::providers::fillers::JoinFill<
-            alloy::providers::fillers::JoinFill<
-                alloy::providers::Identity,
-                alloy::providers::fillers::JoinFill<
-                    alloy::providers::fillers::GasFiller,
-                    alloy::providers::fillers::JoinFill<
-                        alloy::providers::fillers::BlobGasFiller,
-                        alloy::providers::fillers::JoinFill<
-                            alloy::providers::fillers::NonceFiller,
-                            alloy::providers::fillers::ChainIdFiller,
-                        >,
-                    >,
-                >,
-            >,
-            alloy::providers::fillers::WalletFiller<alloy::network::EthereumWallet>,
-        >,
-        alloy::providers::RootProvider,
-    >,
->;
 
 #[derive(Debug, thiserror::Error)]
 pub enum CreateSubchainError {
@@ -213,6 +188,12 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     //     return Err(CreateSubchainError::SubdomainInUse(domain.clone()));
     // }
 
+    let metadata = ctx
+        .metadata
+        .extract_and_compile_metadata(metadataUrl.parse().unwrap())
+        .await
+        .unwrap();
+
     // TODO: remove unwrap
     let owner = ctx.keypair_manager.create_key().unwrap();
     info!("Funding Subchain Owner {}...", owner.pubkey());
@@ -228,11 +209,23 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
 
     let evm_state_pda = evm_state_subchain_account(chain_id);
 
-    // let metadata = ctx.ipfs.get_file(metadataUrl).await.unwrap(); // TODO: unwrap
-
     info!("Creating Subchain EVM State account {evm_state_pda}...");
+    let alloc = {
+        let mut alloc = BTreeMap::new();
+        alloc.insert(
+            H160::zero(),
+            AllocAccount {
+                balance: 0.into(),
+                code: metadata.compiled_contract_source,
+                nonce: 0,
+                storage: BTreeMap::new(),
+            },
+        );
+        alloc
+    };
+
     let config = SubchainConfig {
-        alloc: Default::default(),       // TODO: fill alloc with real values
+        alloc,
         whitelisted: Default::default(), // TODO: strict IP?
         hardfork: crate::subchain_transaction::Hardfork::Istanbul,
         network_name: name.clone(),

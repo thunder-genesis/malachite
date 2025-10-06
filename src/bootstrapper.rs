@@ -3,7 +3,6 @@ use std::{
     net::SocketAddr,
 };
 
-use openstack_sdk::api::image::v2::info;
 use solana_sdk::signature::Keypair as SolKeypair;
 use ssh2::Session;
 use std::net::TcpStream;

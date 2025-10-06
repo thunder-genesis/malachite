@@ -1,13 +1,24 @@
-use futures_util::TryStreamExt;
-use tracing::debug;
+use tracing::{error, info};
 
 use serde::{Deserialize, Serialize};
 use url::Url;
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-pub struct Metadata {
+#[serde(rename_all = "camelCase")]
+struct MetadataRaw {
     // solidity flattened source code actually
     pub compiled_contract_source: String,
+    pub logo_dark_base64: String,
+    pub logo_light_base64: String,
+    pub project_description: String,
+    pub favicon_base64: String,
+    pub explorer_background_base64: String,
+}
+
+#[derive(Debug)]
+pub struct Metadata {
+    // solidity flattened source code actually
+    pub compiled_contract_source: Vec<u8>,
     pub logo_dark_base64: String,
     pub logo_light_base64: String,
     pub project_description: String,
@@ -23,26 +34,29 @@ pub enum MetadataError {
     #[error("Failed to exctact body from Metadata response: {0}")]
     Body(#[source] reqwest::Error),
 
-    #[error("Failed to parse Metadata JSON")]
+    #[error("Failed to parse Metadata JSON: {0}")]
     ParseJson(#[source] serde_json::Error),
 
     #[error("Solidity contract compilation failed with code {code:?}: {stderr}")]
     CompilationFailed { code: Option<i32>, stderr: String },
 
-    #[error("Failed to create temporary directory")]
+    #[error("Failed to create temporary directory: {0}")]
     TempDir(#[source] std::io::Error),
 
-    #[error("Failed to write contract to file")]
+    #[error("Failed to write contract source code to temporary file: {0}")]
     WriteContract(#[source] std::io::Error),
 
-    #[error("Failed to execute `forge` command")]
+    #[error("Failed to execute `forge` command: {0}")]
     ForgeExecution(#[source] std::io::Error),
 
-    #[error("Failed to parse JSON compilation details")]
+    #[error("Failed to parse JSON compilation details: {0}")]
     CompilationJsonParse(#[source] serde_json::Error),
 
-    #[error("Invalid compilation output format")]
-    InvalidCompilationFormat,
+    #[error("Invalid compilation output format: unable to find deployed bytecode")]
+    NoDeployedBytecode,
+
+    #[error("Invalid compilation output format: deployed bytecode is not in hex")]
+    DeployedBytecodeIsNotHex(#[source] alloy::hex::FromHexError),
 }
 
 #[derive(Debug)]
@@ -51,12 +65,15 @@ pub struct MetadataExtractor; // TODO: provide path for `forge` binary
 impl MetadataExtractor {
     pub async fn extract_and_compile_metadata(&self, metadata_url: Url) -> Result<Metadata, MetadataError> {
         let metadata_json = self.download_metadata(metadata_url).await?;
+        info!("Downloaded medatata:\n{metadata_json}");
+
         let metadata_parsed = self.deserialize_metadata(metadata_json).await?;
         let metadata_compiled = self.compile_metadata(metadata_parsed).await?;
         Ok(metadata_compiled)
     }
 
     async fn download_metadata(&self, metadata_url: Url) -> Result<String, MetadataError> {
+        info!("Downloading metadata from `{metadata_url}`");
         reqwest::get(metadata_url)
             .await
             .map_err(MetadataError::Download)?
@@ -65,22 +82,31 @@ impl MetadataExtractor {
             .map_err(MetadataError::Body)
     }
 
-    async fn deserialize_metadata(&self, raw_json: String) -> Result<Metadata, MetadataError> {
+    async fn deserialize_metadata(&self, raw_json: String) -> Result<MetadataRaw, MetadataError> {
+        info!("Parsing metadata JSON");
         serde_json::from_str(&raw_json).map_err(MetadataError::ParseJson)
     }
 
-    async fn compile_metadata(&self, raw_metadata: Metadata) -> Result<Metadata, MetadataError> {
-        let mut raw_metadata = raw_metadata;
+    async fn compile_metadata(&self, raw_metadata: MetadataRaw) -> Result<Metadata, MetadataError> {
+        let MetadataRaw {
+            compiled_contract_source,
+            logo_dark_base64,
+            logo_light_base64,
+            project_description,
+            favicon_base64,
+            explorer_background_base64,
+        } = raw_metadata;
 
+        info!("Writing solidity source code to temporary file");
         let tempdir = tempfile::tempdir().map_err(MetadataError::TempDir)?;
         let contract_path = tempdir.path().join("contract.sol");
-        std::fs::write(&contract_path, &raw_metadata.compiled_contract_source)
-            .map_err(MetadataError::WriteContract)?;
+        std::fs::write(&contract_path, &compiled_contract_source).map_err(MetadataError::WriteContract)?;
         let contract_path = contract_path.to_string_lossy().to_string();
         let dist = tempfile::tempdir().map_err(MetadataError::TempDir)?;
         let dist_path = dist.path().to_string_lossy().to_string();
 
-        let output = std::process::Command::new("/home/maksimv/.foundry/bin/forge")
+        info!("Compiling solidity source code using `forge`");
+        let output = std::process::Command::new("/usr/bin/forge")
             .args(&[
                 "build",
                 &contract_path,
@@ -97,6 +123,7 @@ impl MetadataExtractor {
             .map_err(MetadataError::ForgeExecution)?;
 
         if !output.status.success() {
+            error!("`forge build` exited with non-zero return code: {:?}", output);
             return Err(MetadataError::CompilationFailed {
                 code: output.status.code(),
                 stderr: String::from_utf8_lossy(&output.stderr).to_string(),
@@ -112,11 +139,21 @@ impl MetadataExtractor {
             .as_object()
             .and_then(|contracts| contracts.iter().next())
             .and_then(|(_, contract)| contract[0]["contract"]["evm"]["deployedBytecode"]["object"].as_str())
-            .ok_or(MetadataError::InvalidCompilationFormat)?;
+            .ok_or(MetadataError::NoDeployedBytecode)?;
 
-        raw_metadata.compiled_contract_source = deployed_bytecode.to_string();
+        let compiled_contract_source =
+            alloy::hex::decode(deployed_bytecode).map_err(MetadataError::DeployedBytecodeIsNotHex)?;
 
-        Ok(raw_metadata)
+        let metadata = Metadata {
+            compiled_contract_source,
+            logo_dark_base64,
+            logo_light_base64,
+            project_description,
+            favicon_base64,
+            explorer_background_base64,
+        };
+
+        Ok(metadata)
     }
 }
 
@@ -142,12 +179,13 @@ contract Storage {
         "#
         .to_string();
 
-        let metadata = Metadata {
+        let metadata = MetadataRaw {
             compiled_contract_source,
             ..Default::default()
         };
 
         let extractor = MetadataExtractor;
-        assert!(extractor.compile_metadata(metadata).await.is_ok());
+        let metadata = extractor.compile_metadata(metadata).await.unwrap();
+        assert!(metadata.compiled_contract_source.starts_with(&[0x60, 0x80, 0x60]));
     }
 }
