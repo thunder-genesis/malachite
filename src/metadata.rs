@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use tracing::{error, info};
 
 use serde::{Deserialize, Serialize};
@@ -60,9 +62,18 @@ pub enum MetadataError {
 }
 
 #[derive(Debug)]
-pub struct MetadataExtractor; // TODO: provide path for `forge` binary
+pub struct MetadataExtractor {
+    /// path to `forge` executable
+    forge: String,
+}
 
 impl MetadataExtractor {
+    pub fn new(forge: impl AsRef<str>) -> Self {
+        Self {
+            forge: forge.as_ref().into(),
+        }
+    }
+
     pub async fn extract_and_compile_metadata(&self, metadata_url: Url) -> Result<Metadata, MetadataError> {
         let metadata_json = self.download_metadata(metadata_url).await?;
         info!("Downloaded medatata:\n{metadata_json}");
@@ -106,7 +117,7 @@ impl MetadataExtractor {
         let dist_path = dist.path().to_string_lossy().to_string();
 
         info!("Compiling solidity source code using `forge`");
-        let output = std::process::Command::new("/usr/bin/forge")
+        let output = std::process::Command::new(&self.forge)
             .args(&[
                 "build",
                 &contract_path,
@@ -166,9 +177,15 @@ mod tests {
     #[tokio::test]
     async fn test() {
         let compiled_contract_source = r#"
+// SPDX-License-Identifier: GPL-3.0
 pragma solidity >=0.8.2 <0.9.0;
 contract Storage {
     uint256 number;
+    uint256 foo = 42;
+    uint256 bar;
+    constructor() {
+        bar = 222;
+    }
     function store(uint256 num) public {
         number = num;
     }
@@ -184,7 +201,10 @@ contract Storage {
             ..Default::default()
         };
 
-        let extractor = MetadataExtractor;
+        let extractor = MetadataExtractor {
+            forge: "/usr/bin/forge".to_string(),
+        };
+
         let metadata = extractor.compile_metadata(metadata).await.unwrap();
         assert!(metadata.compiled_contract_source.starts_with(&[0x60, 0x80, 0x60]));
     }

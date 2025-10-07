@@ -99,7 +99,7 @@ impl Context {
 
         let cloudflare = Cloudflare::new(&cli.cloudflare_api_token, &cli.domain)?;
 
-        let metadata = MetadataExtractor;
+        let metadata = MetadataExtractor::new(&cli.forge_executable);
 
         let keypair_manager = KeypairManager;
 

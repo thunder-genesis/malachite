@@ -131,7 +131,7 @@ pub struct Cli {
 
     /// Path to `forge` executable
     #[arg(long, env, value_name = "BIN", value_hint = clap::ValueHint::FilePath)]
-    pub forge_executable: PathBuf,
+    pub forge_executable: String,
 }
 
 #[cfg(test)]
