@@ -21,7 +21,9 @@ struct MetadataRaw {
     pub explorer_background_base64: String,
 }
 
+// TODO: use logos and project description
 #[derive(Debug)]
+#[allow(unused)]
 pub struct Metadata {
     // solidity flattened source code actually
     pub alloc: BTreeMap<H160, AllocAccount>,
@@ -38,7 +40,6 @@ enum GenesisResponse {
     Ok {
         #[serde(rename = "genesisAlloc")]
         genesis_alloc: BTreeMap<H160, JsonAllocAccount>,
-        logs: String,
     },
     Error {
         message: String,

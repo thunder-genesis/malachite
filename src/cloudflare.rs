@@ -2,10 +2,7 @@ use std::net::Ipv4Addr;
 
 use cloudflare::{
     endpoints::{
-        dns::dns::{
-            CreateDnsRecord, CreateDnsRecordParams, DnsContent, DnsRecord, ListDnsRecords,
-            ListDnsRecordsParams,
-        },
+        dns::dns::{CreateDnsRecord, CreateDnsRecordParams, DnsContent, DnsRecord},
         zones::zone::{ListZones, ListZonesParams},
     },
     framework::{Environment, auth::Credentials, client::async_api::Client},
@@ -87,32 +84,6 @@ impl Cloudflare {
                 subdomain: subdomain.as_ref().to_string(),
                 source,
             })
-    }
-
-    pub async fn is_subdomain_exists(&self, subdomain: impl AsRef<str>) -> Result<bool, CloudflareError> {
-        let full_domain_name = format!("{}.{}", subdomain.as_ref(), self.domain);
-
-        let zone = self.get_zone().await?;
-
-        let list_records = ListDnsRecords {
-            zone_identifier: &zone,
-            params: ListDnsRecordsParams {
-                name: Some(full_domain_name.clone()),
-                ..Default::default()
-            },
-        };
-
-        let records = self
-            .client
-            .request(&list_records)
-            .await
-            .map(|r| r.result)
-            .map_err(|source| CloudflareError::ListDnsRecords {
-                subdomain: subdomain.as_ref().to_string(),
-                source,
-            })?;
-
-        Ok(records.iter().any(|record| record.name == full_domain_name))
     }
 
     async fn get_zone(&self) -> Result<ZoneID, CloudflareError> {

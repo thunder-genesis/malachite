@@ -36,6 +36,8 @@ pub enum ContextError {
     },
 }
 
+// TODO: alerting
+#[allow(unused)]
 pub struct Context {
     pub tg_alert: TgAlert,
     pub subchain_registry: SubchainRegistryImpl,

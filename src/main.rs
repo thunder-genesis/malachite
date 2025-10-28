@@ -1,6 +1,7 @@
-#![allow(unused)]
+// #![allow(unused)]
 
 /// Telegram alers
+#[allow(unused)]
 mod alert;
 /// Virtual machine initialization with Subchain gateway and explorer
 mod bootstrapper;
@@ -181,14 +182,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     let chain_id: [u8; 8] = chainId.bitand(Uint::from(u64::MAX)).to_be_bytes();
     let chain_id = u64::from_be_bytes(chain_id);
 
-    info!("quirk: converted chain ID to u64: {chain_id}");
-
-    // // TODO: tiny chance of race condition, security issue
-    // info!("Checking is domain `{}` is available...", domain);
-    // let is_available = ctx.cloudflare.is_subdomain_exists(&domain).await.unwrap();
-    // if !is_available {
-    //     return Err(CreateSubchainError::SubdomainInUse(domain.clone()));
-    // }
+    info!("Quirk: converted chain ID to u64: {chain_id}");
 
     let metadata = ctx
         .metadata

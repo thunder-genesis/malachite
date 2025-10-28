@@ -143,24 +143,6 @@ pub struct AllocAccount {
     pub nonce: u64,
 }
 
-// Part of config that is stored in seperate account (storage).
-// if Extended and regular config is provided - they will be merged by rewriting overlapping accounts.
-#[derive(
-    BorshSerialize,
-    BorshDeserialize,
-    // BorshSchema,
-    Clone,
-    Debug,
-    PartialEq,
-    Eq,
-    Ord,
-    PartialOrd,
-    Default,
-)]
-pub struct ExtendedConfig {
-    pub alloc: BTreeMap<evm::Address, AllocAccount>,
-}
-
 #[derive(
     BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,
 )]
