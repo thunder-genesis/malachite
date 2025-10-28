@@ -1,6 +1,7 @@
 use alloy::{primitives::Address, signers::local::PrivateKeySigner};
 use clap::Parser;
 use std::{net::SocketAddrV4, path::PathBuf};
+use url::Url;
 
 #[derive(Parser, veil::Redact)]
 pub struct Cli {
@@ -129,9 +130,9 @@ pub struct Cli {
     #[arg(long, env, value_name = "BASHFILE", value_hint = clap::ValueHint::FilePath)]
     pub ssh_bootstrap_script: PathBuf,
 
-    /// Path to `forge` executable
-    #[arg(long, env, value_name = "BIN", value_hint = clap::ValueHint::FilePath)]
-    pub forge_executable: String,
+    /// URL to REST API `Genesis Mint` service
+    #[arg(long, env, value_name = "URL", value_hint = clap::ValueHint::Url)]
+    pub genesis_mint: Url,
 }
 
 #[cfg(test)]

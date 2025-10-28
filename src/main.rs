@@ -27,7 +27,7 @@ mod velas_network;
 
 use std::{collections::BTreeMap, net::Ipv4Addr, time::Duration};
 
-use alloy::primitives::Uint;
+use alloy::primitives::{U256, Uint};
 use clap::Parser;
 use futures_util::StreamExt as _;
 use primitive_types::H160;
@@ -188,9 +188,16 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     //     return Err(CreateSubchainError::SubdomainInUse(domain.clone()));
     // }
 
+    // FIXME: initial supply
     let metadata = ctx
         .metadata
-        .extract_and_compile_metadata(metadataUrl.parse().unwrap())
+        .extract_and_compile_metadata(
+            metadataUrl.parse().unwrap(),
+            name.clone(),
+            symbol.clone(),
+            U256::from(1),
+            owner,
+        )
         .await
         .unwrap();
 
@@ -216,7 +223,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
             H160::zero(),
             AllocAccount {
                 balance: 0.into(),
-                code: metadata.compiled_contract_source,
+                code: vec![], //metadata.compiled_contract_source, // FIXME
                 nonce: 0,
                 storage: BTreeMap::new(),
             },
