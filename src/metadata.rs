@@ -58,6 +58,9 @@ struct JsonAllocAccount {
 
 #[derive(Debug, thiserror::Error)]
 pub enum MetadataError {
+    #[error("Failed to parse Metadata URL: {0}")]
+    FailedToParseMetadataUrl(#[from] url::ParseError),
+
     #[error("Failed to fetch Metadata: {0}")]
     Download(#[source] reqwest::Error),
 
@@ -89,12 +92,13 @@ impl MetadataExtractor {
 
     pub async fn extract_and_compile_metadata(
         &self,
-        metadata_url: Url,
+        metadata_url: String,
         coin_name: String,
         coin_symbol: String,
         initial_supply: AlloyU256,
         owner: Address,
     ) -> Result<Metadata, MetadataError> {
+        let metadata_url = Url::parse(&metadata_url)?;
         let metadata_json = self.download_metadata(metadata_url).await?;
         info!("Downloaded medatata:\n{metadata_json}");
 

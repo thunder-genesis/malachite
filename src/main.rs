@@ -1,5 +1,3 @@
-// #![allow(unused)]
-
 /// Telegram alers
 #[allow(unused)]
 mod alert;
@@ -28,7 +26,7 @@ mod velas_network;
 
 use std::{net::Ipv4Addr, time::Duration};
 
-use alloy::primitives::{U256, Uint};
+use alloy::primitives::{U256 as AlloyU256, Uint};
 use clap::Parser;
 use futures_util::StreamExt as _;
 use solana_sdk::{pubkey::Pubkey, signer::Signer as _};
@@ -48,10 +46,11 @@ type SubchainEntry = SubchainRegistry::getSubchainReturn;
 #[derive(Debug, thiserror::Error)]
 pub enum CreateSubchainError {
     #[error("Failed to get Subchain status from Subchain Registry: {0}")]
-    GetSubchainStatus(#[source] alloy::contract::Error),
+    GetSubchainStatus(#[from] alloy::contract::Error),
 
-    // #[error("Subdomain `{0}` is already in use")]
-    // SubdomainInUse(String),
+    #[error(transparent)]
+    MetadataError(#[from] metadata::MetadataError),
+
     #[error("Failed to register subdomain `{subdomain}`: {source}")]
     RegisterSubdomain {
         subdomain: String,
@@ -100,6 +99,9 @@ pub enum CreateSubchainError {
     InstanceNotResponding { name: String, instance_ip: Ipv4Addr },
 
     #[error(transparent)]
+    BootstrapperError(#[from] crate::bootstrapper::BootstrapError),
+
+    #[error(transparent)]
     KeypairManagementError(#[from] crate::keymanager::KeypairManagerError),
 }
 
@@ -134,8 +136,12 @@ async fn main() -> anyhow::Result<()> {
         match subchain_registered {
             Ok((subchain_registered, _log)) => {
                 let idx = subchain_registered.index;
+                let _owner = subchain_registered.owner;
                 info!("New subchain registered with index {idx}");
-                handle_new_subchain(&context, idx).await.unwrap();
+                match handle_new_subchain(&context, idx).await {
+                    Ok(()) => info!("Successfully handled new subchain"),
+                    Err(e) => error!("Failed to handle new subchain: {e}"),
+                }
             }
             Err(e) => {
                 error!("Failed to get `SubchainRegistered` event: {e}");
@@ -150,12 +156,7 @@ async fn main() -> anyhow::Result<()> {
 async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Result<(), CreateSubchainError> {
     info!("Fetching details of new subchain...");
 
-    let subchain_entry = ctx
-        .subchain_registry
-        .getSubchain(subchain_idx)
-        .call()
-        .await
-        .unwrap();
+    let subchain_entry = ctx.subchain_registry.getSubchain(subchain_idx).call().await?;
 
     let SubchainEntry {
         name,
@@ -181,20 +182,18 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     }
     let chain_id: [u8; 8] = chainId.bitand(Uint::from(u64::MAX)).to_be_bytes();
     let chain_id = u64::from_be_bytes(chain_id);
-
     info!("Quirk: converted chain ID to u64: {chain_id}");
 
     let metadata = ctx
         .metadata
         .extract_and_compile_metadata(
-            metadataUrl.parse().unwrap(),
+            metadataUrl,
             name.clone(),
             symbol.clone(),
-            U256::from(1), // TODO: initial supply
+            subchain_eth(42), // TODO: initial supply
             owner,
         )
-        .await
-        .unwrap();
+        .await?;
 
     let owner = ctx.keypair_manager.create_key()?;
     info!("Funding Subchain Owner {}...", owner.pubkey());
@@ -218,7 +217,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
         hardfork: crate::subchain_transaction::Hardfork::Istanbul,
         network_name: name.clone(),
         token_name: symbol,
-        min_gas_price: Default::default(), // TODO: set proper value
+        min_gas_price: gwei(300), // TODO: set proper value
     };
     let sig = ctx
         .velas_network
@@ -299,9 +298,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
         &ctx.vlx_network_for_bridge,
     );
     let ssh_socket = (instance_ip, 22).into();
-    ctx.bootstrapper
-        .bootstrap(ssh_socket, docker_compose, &owner)
-        .unwrap();
+    ctx.bootstrapper.bootstrap(ssh_socket, docker_compose, &owner)?;
     info!("Subchain bridge instance bootstrapped successfully");
 
     info!("Marking Subchain {chain_id} as active in Subchain Registry...");
@@ -314,4 +311,12 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
 
     ctx.keypair_manager.forget_key(&owner.pubkey())?;
     Ok(())
+}
+
+fn gwei(value: u64) -> primitive_types::U256 {
+    primitive_types::U256::from(value) * primitive_types::U256::from(10).pow(9.into())
+}
+
+fn subchain_eth(value: u64) -> AlloyU256 {
+    AlloyU256::from(value) * AlloyU256::from(10).pow(AlloyU256::from(18))
 }
