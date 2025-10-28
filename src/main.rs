@@ -25,12 +25,11 @@ mod subchain_transaction;
 /// Velas Native various transactions and RPC interaction
 mod velas_network;
 
-use std::{collections::BTreeMap, net::Ipv4Addr, time::Duration};
+use std::{net::Ipv4Addr, time::Duration};
 
 use alloy::primitives::{U256, Uint};
 use clap::Parser;
 use futures_util::StreamExt as _;
-use primitive_types::H160;
 use solana_sdk::{pubkey::Pubkey, signer::Signer as _};
 use tracing::{error, info};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
@@ -40,7 +39,7 @@ use crate::{
     context::Context,
     docker::DockerCompose,
     subchain_registry::SubchainRegistry::{self, Status},
-    subchain_transaction::{AllocAccount, SubchainConfig, evm_state_subchain_account},
+    subchain_transaction::{SubchainConfig, evm_state_subchain_account},
 };
 
 type SubchainEntry = SubchainRegistry::getSubchainReturn;
@@ -98,6 +97,9 @@ pub enum CreateSubchainError {
 
     #[error("OpenStack instance `{name}` IP `{instance_ip}` is not responding")]
     InstanceNotResponding { name: String, instance_ip: Ipv4Addr },
+
+    #[error(transparent)]
+    KeypairManagementError(#[from] crate::keymanager::KeypairManagerError),
 }
 
 #[tokio::main]
@@ -188,21 +190,19 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     //     return Err(CreateSubchainError::SubdomainInUse(domain.clone()));
     // }
 
-    // FIXME: initial supply
     let metadata = ctx
         .metadata
         .extract_and_compile_metadata(
             metadataUrl.parse().unwrap(),
             name.clone(),
             symbol.clone(),
-            U256::from(1),
+            U256::from(1), // TODO: initial supply
             owner,
         )
         .await
         .unwrap();
 
-    // TODO: remove unwrap
-    let owner = ctx.keypair_manager.create_key().unwrap();
+    let owner = ctx.keypair_manager.create_key()?;
     info!("Funding Subchain Owner {}...", owner.pubkey());
     let sig = ctx
         .velas_network
@@ -217,22 +217,9 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     let evm_state_pda = evm_state_subchain_account(chain_id);
 
     info!("Creating Subchain EVM State account {evm_state_pda}...");
-    let alloc = {
-        let mut alloc = BTreeMap::new();
-        alloc.insert(
-            H160::zero(),
-            AllocAccount {
-                balance: 0.into(),
-                code: vec![], //metadata.compiled_contract_source, // FIXME
-                nonce: 0,
-                storage: BTreeMap::new(),
-            },
-        );
-        alloc
-    };
 
     let config = SubchainConfig {
-        alloc,
+        alloc: metadata.alloc,
         whitelisted: Default::default(), // TODO: strict IP?
         hardfork: crate::subchain_transaction::Hardfork::Istanbul,
         network_name: name.clone(),
@@ -331,6 +318,6 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
         .map_err(CreateSubchainError::SetSubchainStatus)?;
     info!("Subchain {chain_id} marked as active in Subchain Registry");
 
-    ctx.keypair_manager.forget_key(&owner.pubkey()).unwrap();
+    ctx.keypair_manager.forget_key(&owner.pubkey())?;
     Ok(())
 }
