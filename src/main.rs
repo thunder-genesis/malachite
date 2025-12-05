@@ -45,6 +45,9 @@ type SubchainEntry = SubchainRegistry::getSubchainReturn;
 
 #[derive(Debug, thiserror::Error)]
 pub enum HandleSubchainError {
+    #[error("Failed to parse chain ID: {0}")]
+    BadChainID(#[from] alloy::primitives::ruint::FromUintError<u64>),
+
     #[error(transparent)]
     MetadataError(#[from] metadata::MetadataError),
 
@@ -200,9 +203,8 @@ async fn handle_new_subchain(
     if chainId > Uint::from(u64::MAX) {
         panic!("Chain ID is too big, fix contract to avoid possible overflows");
     }
-    let chain_id: [u8; 8] = chainId.bitand(Uint::from(u64::MAX)).to_be_bytes();
-    let chain_id = u64::from_be_bytes(chain_id);
-    info!("Quirk: converted chain ID to u64: {chain_id}");
+    let chain_id: u64 = chainId.try_into()?;
+    info!("Converted Chain ID U256 {chainId} to u64 {chain_id}");
 
     let metadata = ctx
         .metadata
