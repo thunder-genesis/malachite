@@ -4,7 +4,7 @@ use tgbot::{
 };
 use uuid::Uuid;
 
-use crate::CreateSubchainError;
+use crate::HandleSubchainError;
 
 pub struct TgAlert {
     client: Option<Client>,
@@ -31,7 +31,7 @@ impl TgAlert {
     pub async fn notify_subchain_creation_error(
         &self,
         uuid: Uuid,
-        error: &CreateSubchainError,
+        error: &HandleSubchainError,
     ) -> Result<(), ExecuteError> {
         let message = format!("Create Subchain Error\n\nid: {uuid}\n\n{error}");
         self.notify(&message).await

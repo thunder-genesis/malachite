@@ -44,10 +44,7 @@ use crate::{
 type SubchainEntry = SubchainRegistry::getSubchainReturn;
 
 #[derive(Debug, thiserror::Error)]
-pub enum CreateSubchainError {
-    #[error("Failed to get Subchain status from Subchain Registry: {0}")]
-    GetSubchainStatus(#[from] alloy::contract::Error),
-
+pub enum HandleSubchainError {
     #[error(transparent)]
     MetadataError(#[from] metadata::MetadataError),
 
@@ -74,9 +71,6 @@ pub enum CreateSubchainError {
         #[source]
         source: velas_network::VelasRpcError,
     },
-
-    #[error("Failed to set Subchain status to Subchain Registry: {0}")]
-    SetSubchainStatus(#[source] alloy::contract::Error),
 
     #[error("Failed to fund Subchain EVM State account `{account}`: {source}")]
     FundSubchainEvmState {
@@ -123,7 +117,6 @@ async fn main() -> anyhow::Result<()> {
 
     let context = Context::new(&cli).await.unwrap();
 
-    // TODO: handle other EVM events
     let mut registrations = context
         .subchain_registry
         .SubchainRegistered_filter()
@@ -135,12 +128,40 @@ async fn main() -> anyhow::Result<()> {
     while let Some(subchain_registered) = registrations.next().await {
         match subchain_registered {
             Ok((subchain_registered, _log)) => {
-                let idx = subchain_registered.index;
+                let subchain_idx = subchain_registered.index;
                 let _owner = subchain_registered.owner;
-                info!("New subchain registered with index {idx}");
-                match handle_new_subchain(&context, idx).await {
-                    Ok(()) => info!("Successfully handled new subchain"),
-                    Err(e) => error!("Failed to handle new subchain: {e}"),
+                info!("New Subchain registered with index {subchain_idx}");
+                info!("Fetching details of new Subchain...");
+
+                let subchain_entry = context.subchain_registry.getSubchain(subchain_idx).call().await;
+                let subchain_entry = match subchain_entry {
+                    Ok(subchain_entry) => subchain_entry,
+                    Err(e) => {
+                        error!("Failed to execute `getSubchain` RPC call: {e}");
+                        continue;
+                    }
+                };
+
+                let chain_id = subchain_entry.chainId;
+
+                match handle_new_subchain(&context, subchain_entry).await {
+                    Ok(()) => {
+                        info!("Subchain deployed successfully!");
+                        info!("Marking Subchain {chain_id} as active in Subchain Registry...");
+                        let set_status = context
+                            .subchain_registry
+                            .setStatus(subchain_idx, Status::Active)
+                            .call()
+                            .await;
+
+                        match set_status {
+                            Ok(_) => info!("Subchain {chain_id} marked as active in Subchain Registry"),
+                            Err(e) => {
+                                error!("Failed to execute `setStatus` RPC call for Subchain {chain_id}: {e}")
+                            }
+                        }
+                    }
+                    Err(e) => error!("Failed to handle new Subchain: {e}"),
                 }
             }
             Err(e) => {
@@ -153,11 +174,10 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Result<(), CreateSubchainError> {
-    info!("Fetching details of new subchain...");
-
-    let subchain_entry = ctx.subchain_registry.getSubchain(subchain_idx).call().await?;
-
+async fn handle_new_subchain(
+    ctx: &Context,
+    subchain_entry: SubchainEntry,
+) -> Result<(), HandleSubchainError> {
     let SubchainEntry {
         name,
         domain,
@@ -171,7 +191,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     } = subchain_entry;
 
     info!(
-        "New subchain details: \
+        "Handling new subchain request: \
         name={name}, domain={domain}, symbol={symbol}, metadataUrl={metadataUrl}, chainId={chainId}, \
         owner={owner}, status={status:?}, registrationTime={registrationTime}, activeTill={activeTill}"
     );
@@ -195,7 +215,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
         .velas_network
         .fund_subchain_owner(&owner.pubkey())
         .await
-        .map_err(|source| CreateSubchainError::FundSubchainOwner {
+        .map_err(|source| HandleSubchainError::FundSubchainOwner {
             owner: owner.pubkey(),
             source,
         })?;
@@ -217,7 +237,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
         .velas_network
         .create_subchain(&owner, chain_id, config)
         .await
-        .map_err(|source| CreateSubchainError::CreateSubchainEvmStateAccount {
+        .map_err(|source| HandleSubchainError::CreateSubchainEvmStateAccount {
             account: evm_state_pda,
             source,
         })?;
@@ -228,7 +248,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
         .velas_network
         .fund_subchain_state(evm_state_pda)
         .await
-        .map_err(|source| CreateSubchainError::FundSubchainEvmState {
+        .map_err(|source| HandleSubchainError::FundSubchainEvmState {
             account: evm_state_pda,
             source,
         })?;
@@ -239,7 +259,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
         .openstack
         .deploy_openstack_instance(&name)
         .await
-        .map_err(|source| CreateSubchainError::OpenStackError {
+        .map_err(|source| HandleSubchainError::OpenStackError {
             source,
             name: name.clone(),
         })?;
@@ -250,7 +270,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
         .cloudflare
         .register_subdomain(&domain, instance_ip)
         .await
-        .map_err(|source| CreateSubchainError::RegisterSubdomain {
+        .map_err(|source| HandleSubchainError::RegisterSubdomain {
             subdomain: domain.clone(),
             source,
         })?;
@@ -273,7 +293,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
             }
         }
 
-        return Err(CreateSubchainError::InstanceNotResponding {
+        return Err(HandleSubchainError::InstanceNotResponding {
             instance_ip,
             name: name.clone(),
         });
@@ -294,14 +314,6 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
     let ssh_socket = (instance_ip, 22).into();
     ctx.bootstrapper.bootstrap(ssh_socket, docker_compose, &owner)?;
     info!("Subchain bridge instance bootstrapped successfully");
-
-    info!("Marking Subchain {chain_id} as active in Subchain Registry...");
-    ctx.subchain_registry
-        .setStatus(subchain_idx, Status::Active)
-        .call()
-        .await
-        .map_err(CreateSubchainError::SetSubchainStatus)?;
-    info!("Subchain {chain_id} marked as active in Subchain Registry");
 
     ctx.keypair_manager.forget_key(&owner.pubkey())?;
     Ok(())
