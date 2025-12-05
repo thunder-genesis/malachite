@@ -1,5 +1,6 @@
 use alloy::{primitives::Address, signers::local::PrivateKeySigner};
 use clap::Parser;
+use primitive_types::U256;
 use std::{net::SocketAddrV4, path::PathBuf};
 use url::Url;
 
@@ -26,6 +27,9 @@ pub struct Cli {
     )]
     #[redact(fixed = 8)]
     pub registry_signer: PrivateKeySigner,
+
+    #[arg(long, env, default_value = "300000000000", value_name = "WEI")]
+    pub subchain_min_gas_price: U256,
 
     /// Velas Node RPC URL used by this service
     #[arg(long, env, value_name = "URL", value_hint = clap::ValueHint::Url, default_value = "http://127.0.0.1:8899")]

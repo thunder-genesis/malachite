@@ -1,4 +1,5 @@
 use alloy::providers::ProviderBuilder;
+use primitive_types::U256;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::{signature::Keypair as SolKeypair, signer::EncodableKey as _};
 
@@ -47,6 +48,7 @@ pub struct Context {
     pub vlx_network_for_bridge: String,
     pub metadata: MetadataExtractor,
     pub keypair_manager: KeypairManager,
+    pub min_gas_price: U256,
 }
 
 impl Context {
@@ -113,6 +115,7 @@ impl Context {
             vlx_network_for_bridge: cli.vlx_network_for_bridge.clone(),
             metadata,
             keypair_manager,
+            min_gas_price: cli.subchain_min_gas_price,
         })
     }
 }

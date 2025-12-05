@@ -253,7 +253,7 @@ async fn deploy_new_subchain(
         hardfork: crate::subchain_transaction::Hardfork::Istanbul,
         network_name: name.clone(),
         token_name: symbol,
-        min_gas_price: gwei(300), // TODO: set proper value
+        min_gas_price: ctx.min_gas_price,
     };
     let sig = ctx
         .velas_network
@@ -339,10 +339,6 @@ async fn deploy_new_subchain(
 
     ctx.keypair_manager.forget_key(&owner.pubkey())?;
     Ok(())
-}
-
-fn gwei(value: u64) -> primitive_types::U256 {
-    primitive_types::U256::from(value) * primitive_types::U256::from(10).pow(9.into())
 }
 
 fn subchain_eth(value: u64) -> AlloyU256 {
