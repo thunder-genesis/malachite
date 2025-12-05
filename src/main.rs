@@ -186,13 +186,7 @@ async fn handle_new_subchain(ctx: &Context, subchain_idx: Uint<256, 4>) -> Resul
 
     let metadata = ctx
         .metadata
-        .extract_and_compile_metadata(
-            metadataUrl,
-            name.clone(),
-            symbol.clone(),
-            subchain_eth(42), // TODO: initial supply
-            owner,
-        )
+        .extract_and_compile_metadata(metadataUrl, name.clone(), symbol.clone(), subchain_eth(1), owner)
         .await?;
 
     let owner = ctx.keypair_manager.create_key()?;
