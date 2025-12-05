@@ -36,8 +36,6 @@ pub enum ContextError {
     },
 }
 
-// TODO: alerting
-#[allow(unused)]
 pub struct Context {
     pub tg_alert: TgAlert,
     pub subchain_registry: SubchainRegistryImpl,
@@ -60,7 +58,6 @@ impl Context {
             TgAlert::new_empty()
         };
 
-        // TODO: dyn Trait for testability
         let subchain_registry = {
             let eth_provider = ProviderBuilder::new()
                 .wallet(cli.registry_signer.clone())

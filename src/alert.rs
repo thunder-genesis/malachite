@@ -28,12 +28,16 @@ impl TgAlert {
         }
     }
 
+    pub async fn notify_subchain_creation_success(&self, subchain_id: u64) -> Result<(), ExecuteError> {
+        let message = format!("✅ Subchain handled successfully\n\nChain ID: {subchain_id}");
+        self.notify(&message).await
+    }
+
     pub async fn notify_subchain_creation_error(
         &self,
-        uuid: Uuid,
         error: &HandleSubchainError,
     ) -> Result<(), ExecuteError> {
-        let message = format!("Create Subchain Error\n\nid: {uuid}\n\n{error}");
+        let message = format!("❌ Handle subchain error:\n\n{error}");
         self.notify(&message).await
     }
 

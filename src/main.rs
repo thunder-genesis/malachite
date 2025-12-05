@@ -26,11 +26,11 @@ mod velas_network;
 
 use std::{net::Ipv4Addr, time::Duration};
 
-use alloy::primitives::{U256 as AlloyU256, Uint};
+use alloy::primitives::{Address, U256 as AlloyU256};
 use clap::Parser;
 use futures_util::StreamExt as _;
 use solana_sdk::{pubkey::Pubkey, signer::Signer as _};
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 use tracing_subscriber::{EnvFilter, FmtSubscriber};
 
 use crate::{
@@ -118,97 +118,117 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Executing service with parameters: {:#?}", cli);
 
-    let context = Context::new(&cli).await.unwrap();
+    let context = Context::new(&cli)
+        .await
+        .expect("Failed to create context, check configuration");
 
     let mut registrations = context
         .subchain_registry
         .SubchainRegistered_filter()
         .watch()
         .await
-        .unwrap()
+        .expect("Failed to watch for Subchain registrations")
         .into_stream();
 
     while let Some(subchain_registered) = registrations.next().await {
-        match subchain_registered {
-            Ok((subchain_registered, _log)) => {
-                let subchain_idx = subchain_registered.index;
-                let _owner = subchain_registered.owner;
-                info!("New Subchain registered with index {subchain_idx}");
-                info!("Fetching details of new Subchain...");
-
-                let subchain_entry = context.subchain_registry.getSubchain(subchain_idx).call().await;
-                let subchain_entry = match subchain_entry {
-                    Ok(subchain_entry) => subchain_entry,
-                    Err(e) => {
-                        error!("Failed to execute `getSubchain` RPC call: {e}");
-                        continue;
-                    }
-                };
-
-                let chain_id = subchain_entry.chainId;
-
-                match handle_new_subchain(&context, subchain_entry).await {
-                    Ok(()) => {
-                        info!("Subchain deployed successfully!");
-                        info!("Marking Subchain {chain_id} as active in Subchain Registry...");
-                        let set_status = context
-                            .subchain_registry
-                            .setStatus(subchain_idx, Status::Active)
-                            .call()
-                            .await;
-
-                        match set_status {
-                            Ok(_) => info!("Subchain {chain_id} marked as active in Subchain Registry"),
-                            Err(e) => {
-                                error!("Failed to execute `setStatus` RPC call for Subchain {chain_id}: {e}")
-                            }
-                        }
-                    }
-                    Err(e) => error!("Failed to handle new Subchain: {e}"),
-                }
-            }
+        let (subchain_registered, _log) = match subchain_registered {
+            Ok(subchain_registered) => subchain_registered,
             Err(e) => {
                 error!("Failed to get `SubchainRegistered` event: {e}");
+                // TODO: tg alert
                 continue;
             }
+        };
+
+        let subchain_idx = subchain_registered.index;
+        let _owner = subchain_registered.owner;
+        info!("New Subchain registered with index {subchain_idx}");
+        info!("Fetching details of new Subchain...");
+
+        let subchain_entry = match context.subchain_registry.getSubchain(subchain_idx).call().await {
+            Ok(subchain_entry) => subchain_entry,
+            Err(e) => {
+                error!("Failed to execute `getSubchain` RPC call: {e}");
+                // TODO: tg alert
+                continue;
+            }
+        };
+
+        let SubchainEntry {
+            name,
+            domain,
+            symbol,
+            metadataUrl,
+            chainId,
+            owner,
+            status: _,
+            registrationTime: _,
+            activeTill: _,
+        } = subchain_entry;
+
+        let chain_id: u64 = match chainId.try_into() {
+            Ok(chain_id) => chain_id,
+            Err(e) => {
+                error!("Failed to convert Chain ID U256 {chainId} to u64: {e}");
+                // TODO: tg alert
+                continue;
+            }
+        };
+
+        if let Err(e) =
+            deploy_new_subchain(&context, name, domain, symbol, metadataUrl, chain_id, owner).await
+        {
+            error!("Failed to deploy new Subchain: {e}");
+            let _ = context
+                .tg_alert
+                .notify_subchain_creation_error(&e)
+                .await
+                .inspect_err(|e| error!("Telegram notification failed: {e}"));
+            continue;
         }
+
+        info!("Subchain deployed successfully!");
+
+        info!("Marking Subchain {chain_id} as active in Subchain Registry...");
+
+        if let Err(e) = context
+            .subchain_registry
+            .setStatus(subchain_idx, Status::Active)
+            .call()
+            .await
+        {
+            error!("Failed to execute `setStatus` RPC call for Subchain {chain_id}: {e}");
+            // TODO: tg alert
+            continue;
+        }
+
+        // TODO: tg alert
+
+        info!("Subchain {chain_id} marked as active in Subchain Registry");
     }
 
     Ok(())
 }
 
-async fn handle_new_subchain(
+#[instrument(skip_all, fields(subchain_name = name, domain, chain_id))]
+async fn deploy_new_subchain(
     ctx: &Context,
-    subchain_entry: SubchainEntry,
+    // subchain_entry: SubchainEntry,
+    name: String,
+    domain: String,
+    symbol: String,
+    metadata_url: String,
+    chain_id: u64,
+    owner: Address,
 ) -> Result<(), HandleSubchainError> {
-    let SubchainEntry {
-        name,
-        domain,
-        symbol,
-        metadataUrl,
-        chainId,
-        owner,
-        status,
-        registrationTime,
-        activeTill,
-    } = subchain_entry;
-
     info!(
-        "Handling new subchain request: \
-        name={name}, domain={domain}, symbol={symbol}, metadataUrl={metadataUrl}, chainId={chainId}, \
-        owner={owner}, status={status:?}, registrationTime={registrationTime}, activeTill={activeTill}"
+        "Handling new subchain request: name={name}, domain={domain}, symbol={symbol}, \
+        metadata_url={metadata_url}, chainId={chain_id}, owner={owner}"
     );
-
-    // TODO: This check should be fixed on a contract level to avoid possible overflows
-    if chainId > Uint::from(u64::MAX) {
-        panic!("Chain ID is too big, fix contract to avoid possible overflows");
-    }
-    let chain_id: u64 = chainId.try_into()?;
-    info!("Converted Chain ID U256 {chainId} to u64 {chain_id}");
 
     let metadata = ctx
         .metadata
-        .extract_and_compile_metadata(metadataUrl, name.clone(), symbol.clone(), subchain_eth(1), owner)
+        .extract_and_compile_metadata(metadata_url, name.clone(), symbol.clone(), subchain_eth(1), owner)
         .await?;
 
     let owner = ctx.keypair_manager.create_key()?;
