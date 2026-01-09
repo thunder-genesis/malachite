@@ -2,7 +2,6 @@ use solana_sdk::{
     pubkey::Pubkey, signature::EncodableKey, signature::Keypair as SolKeypair, signer::Signer as _,
 };
 use std::{env::temp_dir, fs::File, io::Write, path::PathBuf};
-use tracing::error;
 
 #[derive(Debug, thiserror::Error)]
 pub enum KeypairManagerError {

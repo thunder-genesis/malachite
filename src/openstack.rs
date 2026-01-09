@@ -6,7 +6,7 @@ use openstack_sdk::{
     AsyncOpenStack, OpenStackError,
     config::{Auth, CloudConfig},
 };
-use tracing::{debug, error, info};
+use tracing::{debug, info};
 
 use crate::cli::Cli;
 

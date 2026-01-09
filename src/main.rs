@@ -207,14 +207,15 @@ async fn main() -> anyhow::Result<()> {
         info!("Subchain {chain_id} marked as active in Subchain Registry");
     }
 
+    // TODO: tg alert
+
     Ok(())
 }
 
-#[instrument(skip_all, fields(subchain_name = name, domain, chain_id))]
+#[instrument(skip_all, fields(subchain_name, domain, chain_id))]
 async fn deploy_new_subchain(
     ctx: &Context,
-    // subchain_entry: SubchainEntry,
-    name: String,
+    subchain_name: String,
     domain: String,
     symbol: String,
     metadata_url: String,
@@ -222,13 +223,19 @@ async fn deploy_new_subchain(
     owner: Address,
 ) -> Result<(), HandleSubchainError> {
     info!(
-        "Handling new subchain request: name={name}, domain={domain}, symbol={symbol}, \
+        "Handling new subchain request: name={subchain_name}, domain={domain}, symbol={symbol}, \
         metadata_url={metadata_url}, chainId={chain_id}, owner={owner}"
     );
 
     let metadata = ctx
         .metadata
-        .extract_and_compile_metadata(metadata_url, name.clone(), symbol.clone(), subchain_eth(1), owner)
+        .extract_and_compile_metadata(
+            metadata_url,
+            subchain_name.clone(),
+            symbol.clone(),
+            subchain_eth(1),
+            owner,
+        )
         .await?;
 
     let owner = ctx.keypair_manager.create_key()?;
@@ -251,7 +258,7 @@ async fn deploy_new_subchain(
         alloc: metadata.alloc,
         whitelisted: Default::default(), // TODO: strict IP?
         hardfork: crate::subchain_transaction::Hardfork::Istanbul,
-        network_name: name.clone(),
+        network_name: subchain_name.clone(),
         token_name: symbol,
         min_gas_price: ctx.min_gas_price,
     };
@@ -276,16 +283,16 @@ async fn deploy_new_subchain(
         })?;
     info!("Subchain EVM State account {evm_state_pda} funded, signature: {sig}");
 
-    info!("Deploying OpenStack instance for subchain `{name}`...");
+    info!("Deploying OpenStack instance for subchain `{subchain_name}`...");
     let instance_ip = ctx
         .openstack
-        .deploy_openstack_instance(&name)
+        .deploy_openstack_instance(&subchain_name)
         .await
         .map_err(|source| HandleSubchainError::OpenStackError {
             source,
-            name: name.clone(),
+            name: subchain_name.clone(),
         })?;
-    info!("OpenStack instance for subchain `{name}` has been deployed, IP: {instance_ip}");
+    info!("OpenStack instance for subchain `{subchain_name}` has been deployed, IP: {instance_ip}");
 
     info!("Registring DNS record for domain `{}`...", domain);
     let _dns_record = ctx
@@ -317,7 +324,7 @@ async fn deploy_new_subchain(
 
         return Err(HandleSubchainError::InstanceNotResponding {
             instance_ip,
-            name: name.clone(),
+            name: subchain_name.clone(),
         });
     }
 
@@ -326,7 +333,7 @@ async fn deploy_new_subchain(
     info!("Waiting for SSH to become available in {SSH_AWAITING_SECONDS} seconds...");
     tokio::time::sleep(Duration::from_secs(SSH_AWAITING_SECONDS)).await;
 
-    info!("Bootstrapping Subchain instance `{name}`...");
+    info!("Bootstrapping Subchain instance `{subchain_name}`...");
     let docker_compose = DockerCompose::new(
         domain.clone(),
         ctx.domain.clone(),
