@@ -4,31 +4,31 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-alloy = "1.4.0"
+alloy = "1.0.37"
 anyhow = "1"
-askama = "0.15.1"
-borsh = "=1.5.7"
+askama = "0.14.0"
+borsh = "1.5"
 dotenvy = "0.15.7"
-clap = { version = "4.5.54", features = ["env", "derive"] }
+clap = { version = "4.5.48", features = ["env", "derive"] }
 cloudflare = "0.14.0"
 futures-util = "0.3.31"
 openstack_sdk = "=0.21.4"
 primitive-types = { git = "https://github.com/velas/parity-common", branch = "bump-borsh", features = ["borsh", "serde"] }
 rand = "0.9.2"
-reqwest = "0.13.1"
+reqwest = "0.12"
 serde = "1.0.219"
-serde_json = "1.0.149"
+serde_json = "1.0.145"
 solana-client = { version = "=2.3.1"}
 solana-sdk = { version = "=2.3.1", features = ["full", "borsh"] }
 ssh2 = "0.9"
 surge-ping = "0.8.2"
 tempfile = "3.23.0"
 thiserror = "2"
-tgbot = "0.41.0"
-tokio = { version = "1.49.0", features = ["rt-multi-thread", "macros"] }
+tgbot = "0.40.0"
+tokio = { version = "1.47.1", features = ["rt-multi-thread", "macros"] }
 tracing = "0.1"
 # tracing-journald = "0.3"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-veil = "0.3.0"
-url = "2.5.8"
+veil = "0.2.0"
+url = "2.5.7"
 uuid = { version = "1.18.1", features = ["v4"] }
