@@ -127,9 +127,10 @@ async fn main() -> anyhow::Result<()> {
         .SubchainRegistered_filter()
         .watch()
         .await
-        .expect("Failed to watch for Subchain registrations")
+        .expect("Can't connect to EVM network and listen for SubchainRegistered events")
         .into_stream();
 
+    info!("Listening for SubchainRegistered events...");
     while let Some(subchain_registered) = registrations.next().await {
         let (subchain_registered, _log) = match subchain_registered {
             Ok(subchain_registered) => subchain_registered,
@@ -145,6 +146,7 @@ async fn main() -> anyhow::Result<()> {
         info!("New Subchain registered with index {subchain_idx}");
         info!("Fetching details of new Subchain...");
 
+        info!("Fetching details of subchain[{subchain_idx}]...");
         let subchain_entry = match context.subchain_registry.getSubchain(subchain_idx).call().await {
             Ok(subchain_entry) => subchain_entry,
             Err(e) => {
@@ -165,6 +167,16 @@ async fn main() -> anyhow::Result<()> {
             registrationTime: _,
             activeTill: _,
         } = subchain_entry;
+
+        info!("subchain name: {name}");
+        info!("subchain domain: {domain}");
+        info!("subchain symbol: {symbol}");
+        info!("subchain metadataUrl: {metadataUrl}");
+        info!("subchain chainId: {chainId}");
+        info!("subchain owner: {owner}");
+        // info!("subchain status: {status}");
+        // info!("subchain registrationTime: {registrationTime}");
+        // info!("subchain activeTill: {activeTill}");
 
         let chain_id: u64 = match chainId.try_into() {
             Ok(chain_id) => chain_id,
