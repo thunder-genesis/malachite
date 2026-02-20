@@ -75,6 +75,47 @@ pub fn create_evm_instruction_with_borsh(
     }
 }
 
+#[derive(
+    BorshSerialize, BorshDeserialize, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize,
+)]
+pub enum EvmBigTransaction {
+    /// Allocate data in storage, pay fee should be taken from EVM.
+    EvmTransactionAllocate { size: u64 },
+
+    /// Store part of EVM transaction into temporary storage, in order to execute it later.
+    EvmTransactionWrite { offset: u64, data: Vec<u8> },
+}
+
+pub fn big_tx_allocate(storage: solana::Address, size: usize) -> solana::Instruction {
+    let account_metas = vec![
+        AccountMeta::new(EVM_LOADER_ID, false),
+        AccountMeta::new(storage, true),
+    ];
+
+    let big_tx = EvmBigTransaction::EvmTransactionAllocate { size: size as u64 };
+
+    create_evm_instruction_with_borsh(
+        EVM_LOADER_ID,
+        &EvmInstruction::EvmBigTransaction(big_tx),
+        account_metas,
+    )
+}
+
+pub fn big_tx_write(storage: solana::Address, offset: u64, chunk: Vec<u8>) -> solana::Instruction {
+    let account_metas = vec![
+        AccountMeta::new(EVM_STATE_ID, false),
+        AccountMeta::new(storage, true),
+    ];
+
+    let big_tx = EvmBigTransaction::EvmTransactionWrite { offset, data: chunk };
+
+    create_evm_instruction_with_borsh(
+        EVM_LOADER_ID,
+        &EvmInstruction::EvmBigTransaction(big_tx),
+        account_metas,
+    )
+}
+
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[allow(clippy::large_enum_variant)]
@@ -82,7 +123,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 pub enum EvmInstruction {
     SwapNativeToEther {},
     FreeOwnership {},
-    EvmBigTransaction {},
+    EvmBigTransaction(EvmBigTransaction),
     ExecuteTransaction {},
 
     /// account_structure [
@@ -165,5 +206,30 @@ impl Default for SubchainConfig {
             token_name: String::new(),
             min_gas_price: U256::zero(),
         }
+    }
+}
+
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Ord,
+    PartialOrd,
+    Serialize,
+    Deserialize,
+    Default,
+)]
+pub struct ExtendedConfig {
+    pub alloc: BTreeMap<evm::Address, AllocAccount>,
+}
+impl ExtendedConfig {
+    pub fn split(mut config: SubchainConfig) -> (Self, SubchainConfig) {
+        let extended = ExtendedConfig {
+            alloc: std::mem::take(&mut config.alloc),
+        };
+        (extended, config)
     }
 }

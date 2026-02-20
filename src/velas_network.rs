@@ -1,6 +1,8 @@
+use borsh::BorshSerialize;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::{
     hash::Hash,
+    packet::PACKET_DATA_SIZE,
     pubkey::Pubkey,
     signature::{Keypair as SolKeypair, Signature},
     signer::Signer,
@@ -9,7 +11,9 @@ use solana_sdk::{
 };
 use tracing::info;
 
-use crate::subchain_transaction::{SubchainConfig, create_evm_subchain_account};
+use crate::subchain_transaction::{
+    ExtendedConfig, SubchainConfig, big_tx_allocate, big_tx_write, create_evm_subchain_account,
+};
 
 #[derive(Debug, thiserror::Error, serde::Serialize)]
 pub enum VelasRpcError {
@@ -24,6 +28,15 @@ pub enum VelasRpcError {
 
     #[error("Failed to fund Subchain EVM State account `{account}`: {error}")]
     FundSubchainState { account: Pubkey, error: String },
+
+    #[error("Failed to serialize Subchain `{0}` config into Borsh message: {1}")]
+    SerializeError(u64, String),
+
+    #[error("Failed to allocate big transaction storage for Subchain `{chain_id}`: {error}")]
+    AllocateBigTxStorage { chain_id: u64, error: String },
+
+    #[error("Failed to write big transaction data for Subchain `{chain_id}`: {error}")]
+    WriteBigTxStorage { chain_id: u64, error: String },
 }
 
 pub struct VelasNetwork {
@@ -76,18 +89,67 @@ impl VelasNetwork {
         config: SubchainConfig,
     ) -> Result<Signature, VelasRpcError> {
         let recent_blockhash = self.get_latest_blockhash().await?;
-        let signature = {
-            let ix = create_evm_subchain_account(owner.pubkey(), chain_id, config, None);
-            let tx =
-                Transaction::new_signed_with_payer(&[ix], Some(&owner.pubkey()), &[&owner], recent_blockhash);
+        let ix = create_evm_subchain_account(owner.pubkey(), chain_id, config.clone(), None);
+        let tx =
+            Transaction::new_signed_with_payer(&[ix], Some(&owner.pubkey()), &[&owner], recent_blockhash);
+
+        info!("Determining if Subchain `{chain_id}` config size...");
+        let result = if tx.message_data().len() > PACKET_DATA_SIZE {
+            info!("Subchain `{chain_id}` config needs big transaction storage...");
+            let (extended_config, config) = ExtendedConfig::split(config);
+            let mut data = vec![];
+            extended_config
+                .serialize(&mut data)
+                .map_err(|e| VelasRpcError::SerializeError(chain_id, e.to_string()))?;
+
+            let storage = Pubkey::new_unique();
+            info!("Generated big transaction storage for Subchain `{chain_id}`: {storage}");
+
+            info!("Allocating big transaction storage");
+            let big_tx_alloc = big_tx_allocate(storage, data.len());
+            let tx = Transaction::new_signed_with_payer(
+                &[big_tx_alloc],
+                Some(&owner.pubkey()),
+                &[&owner],
+                recent_blockhash,
+            );
             self.client.send_and_confirm_transaction(&tx).await.map_err(|e| {
-                VelasRpcError::CreateSubchain {
+                VelasRpcError::AllocateBigTxStorage {
                     chain_id,
                     error: e.to_string(),
                 }
-            })?
+            })?;
+
+            info!("Writing big transaction storage...");
+            let big_tx_write = big_tx_write(storage, 0, data);
+            let tx = Transaction::new_signed_with_payer(
+                &[big_tx_write],
+                Some(&owner.pubkey()),
+                &[&owner],
+                recent_blockhash,
+            );
+            self.client.send_and_confirm_transaction(&tx).await.map_err(|e| {
+                VelasRpcError::WriteBigTxStorage {
+                    chain_id,
+                    error: e.to_string(),
+                }
+            })?;
+
+            info!("Creating Subchain `{chain_id}`...");
+            let recent_blockhash = self.get_latest_blockhash().await?;
+            let ix = create_evm_subchain_account(owner.pubkey(), chain_id, config, Some(storage));
+            let tx =
+                Transaction::new_signed_with_payer(&[ix], Some(&owner.pubkey()), &[&owner], recent_blockhash);
+
+            self.client.send_and_confirm_transaction(&tx).await
+        } else {
+            self.client.send_and_confirm_transaction(&tx).await
         };
-        Ok(signature)
+
+        result.map_err(|e| VelasRpcError::CreateSubchain {
+            chain_id,
+            error: e.to_string(),
+        })
     }
 
     pub async fn fund_subchain_state(&self, subchain_state: Pubkey) -> Result<Signature, VelasRpcError> {
