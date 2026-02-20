@@ -100,11 +100,27 @@ impl MetadataExtractor {
         initial_supply: AlloyU256,
         owner: Address,
     ) -> Result<Metadata, MetadataError> {
+        // IPFS Link: `ipfs://cid`
         let metadata_url = Url::parse(&metadata_url)?;
-        let metadata_json = self.download_metadata(metadata_url).await?;
-        info!("Downloaded medatata:\n{metadata_json}");
+        // Convert IPFS Link to public HTTPS pinata Link
+        let metadata_through_https = format!(
+            "https://gateway.pinata.cloud/ipfs/{}",
+            metadata_url
+                .host()
+                .map(|host| host.to_string())
+                .unwrap_or_default()
+        );
+        let metadata_json = self
+            .download_metadata(Url::parse(&metadata_through_https)?)
+            .await?;
+        info!("Downloaded raw medatata:\n{metadata_json}");
 
         let metadata_parsed = self.deserialize_metadata(metadata_json).await?;
+
+        info!(
+            "Parsed metadata: {:?}",
+            serde_json::to_string_pretty(&metadata_parsed)
+        );
         let metadata_compiled = self
             .compile_metadata(metadata_parsed, coin_name, coin_symbol, initial_supply, owner)
             .await?;
