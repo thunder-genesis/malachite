@@ -13,7 +13,7 @@ use solana_sdk::instruction::AccountMeta;
 
 pub type ChainID = u64;
 
-const EVM_LOADER_ID: solana::Address =
+pub const EVM_LOADER_ID: solana::Address =
     solana::Address::from_str_const("EVM1111111111111111111111111111111111111111");
 const EVM_STATE_ID: solana::Address =
     solana::Address::from_str_const("EvmState11111111111111111111111111111111111");
@@ -88,7 +88,7 @@ pub enum EvmBigTransaction {
 
 pub fn big_tx_allocate(storage: solana::Address, size: usize) -> solana::Instruction {
     let account_metas = vec![
-        AccountMeta::new(EVM_LOADER_ID, false),
+        AccountMeta::new(EVM_STATE_ID, false),
         AccountMeta::new(storage, true),
     ];
 

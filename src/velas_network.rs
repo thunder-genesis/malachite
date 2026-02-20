@@ -6,6 +6,7 @@ use solana_sdk::{
     pubkey::Pubkey,
     signature::{Keypair as SolKeypair, Signature},
     signer::Signer,
+    system_instruction::create_account,
     system_transaction::transfer,
     transaction::Transaction,
 };
@@ -102,15 +103,27 @@ impl VelasNetwork {
                 .serialize(&mut data)
                 .map_err(|e| VelasRpcError::SerializeError(chain_id, e.to_string()))?;
 
-            let storage = Pubkey::new_unique();
-            info!("Generated big transaction storage for Subchain `{chain_id}`: {storage}");
+            let storage = SolKeypair::new();
+            info!(
+                "Generated big transaction storage for Subchain `{chain_id}`: {}",
+                storage.pubkey()
+            );
 
+            let recent_blockhash = self.get_latest_blockhash().await?;
             info!("Allocating big transaction storage");
-            let big_tx_alloc = big_tx_allocate(storage, data.len());
+            let create_storage_ix = create_account(
+                &owner.pubkey(),
+                &storage.pubkey(),
+                10000000000,
+                data.len() as u64,
+                &crate::subchain_transaction::EVM_LOADER_ID,
+            );
+
+            let big_tx_alloc = big_tx_allocate(storage.pubkey(), data.len());
             let tx = Transaction::new_signed_with_payer(
-                &[big_tx_alloc],
+                &[create_storage_ix, big_tx_alloc],
                 Some(&owner.pubkey()),
-                &[&owner],
+                &[&owner, &storage],
                 recent_blockhash,
             );
             self.client.send_and_confirm_transaction(&tx).await.map_err(|e| {
@@ -121,25 +134,43 @@ impl VelasNetwork {
             })?;
 
             info!("Writing big transaction storage...");
-            let big_tx_write = big_tx_write(storage, 0, data);
-            let tx = Transaction::new_signed_with_payer(
-                &[big_tx_write],
-                Some(&owner.pubkey()),
-                &[&owner],
-                recent_blockhash,
-            );
-            self.client.send_and_confirm_transaction(&tx).await.map_err(|e| {
-                VelasRpcError::WriteBigTxStorage {
-                    chain_id,
-                    error: e.to_string(),
-                }
-            })?;
+
+            const TX_MTU: usize = 908;
+            let write_txs = data
+                .chunks(TX_MTU)
+                .enumerate()
+                .map(|(i, chunk)| big_tx_write(storage.pubkey(), (i * TX_MTU) as u64, chunk.to_vec()))
+                .collect::<Vec<_>>();
+
+            let chunks_count = write_txs.len();
+            info!("Writing big transaction in {} chunks...", chunks_count);
+            let recent_blockhash = self.get_latest_blockhash().await?;
+            for (tx_id, ix) in write_txs.into_iter().enumerate() {
+                info!("[{}/{}] Writing chunk...", tx_id + 1, chunks_count);
+                let tx = Transaction::new_signed_with_payer(
+                    &[ix],
+                    Some(&owner.pubkey()),
+                    &[&owner, &storage],
+                    recent_blockhash,
+                );
+                self.client
+                    .send_transaction(&tx)
+                    .await
+                    .map_err(|e| VelasRpcError::WriteBigTxStorage {
+                        chain_id,
+                        error: e.to_string(),
+                    })?;
+            }
 
             info!("Creating Subchain `{chain_id}`...");
             let recent_blockhash = self.get_latest_blockhash().await?;
-            let ix = create_evm_subchain_account(owner.pubkey(), chain_id, config, Some(storage));
-            let tx =
-                Transaction::new_signed_with_payer(&[ix], Some(&owner.pubkey()), &[&owner], recent_blockhash);
+            let ix = create_evm_subchain_account(owner.pubkey(), chain_id, config, Some(storage.pubkey()));
+            let tx = Transaction::new_signed_with_payer(
+                &[ix],
+                Some(&owner.pubkey()),
+                &[&owner, &storage],
+                recent_blockhash,
+            );
 
             self.client.send_and_confirm_transaction(&tx).await
         } else {

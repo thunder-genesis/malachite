@@ -49,7 +49,9 @@ enum GenesisResponse {
 
 #[derive(Debug, Deserialize)]
 struct JsonAllocAccount {
+    #[serde(default)]
     code: String,
+    #[serde(default)]
     storage: BTreeMap<H256, H256>,
     balance: PrimitiveU256,
     // we can use hatdcoded `1`

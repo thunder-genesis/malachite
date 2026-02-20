@@ -63,7 +63,7 @@ pub struct Cli {
         long,
         env,
         value_name = "LAMPORTS",
-        default_value = "1000001000000000" // 1_000_001 vlx
+        default_value = "1001000000000000" // 1_001_000 vlx
     )]
     pub fund_subchain_owner: u64,
 

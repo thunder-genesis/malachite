@@ -131,6 +131,16 @@ async fn main() -> anyhow::Result<()> {
         .into_stream();
 
     info!("Listening for SubchainRegistered events...");
+
+    // use alloy::rpc::types::Log;
+    // let subchain_registered = crate::subchain_registry::SubchainRegistry::SubchainRegistered {
+    //     index: alloy::primitives::Uint::from(1),
+    //     owner: Address::ZERO,
+    // };
+    // let log: Log<alloy::primitives::LogData> = Log::default();
+    // let mut registrations =
+    //     Box::pin(futures_util::stream::once(async { Ok((subchain_registered, log)) }).chain(registrations));
+
     while let Some(subchain_registered) = registrations.next().await {
         let (subchain_registered, _log) = match subchain_registered {
             Ok(subchain_registered) => subchain_registered,
