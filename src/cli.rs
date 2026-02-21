@@ -114,6 +114,10 @@ pub struct Cli {
     #[arg(long, env, value_name = "STRING")]
     pub os_network_id: String,
 
+    /// OpenStack Network Security Group Name
+    #[arg(long, env, value_name = "STRING", default_value = "Default")]
+    pub os_security_group_name: String,
+
     /// OpenStack Instance Operating System Image ID
     #[arg(long, env, value_name = "STRING")]
     pub os_image_id: String,
@@ -125,6 +129,10 @@ pub struct Cli {
     /// OpenStack SSH Public Key ID
     #[arg(long, env, value_name = "STRING")]
     pub os_ssh_pubkey_name: String,
+
+    /// SSH Username on the remote instance for bootstrapping
+    #[arg(long, env, value_name = "STRING", value_hint = clap::ValueHint::FilePath, default_value = "root")]
+    pub ssh_username: String,
 
     /// Path to SSH secret key PEM file for bootstrapping the OpenStack instance
     #[arg(long, env, value_name = "PEMFILE", value_hint = clap::ValueHint::FilePath)]

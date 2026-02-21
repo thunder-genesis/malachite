@@ -11,7 +11,6 @@ use tracing::{error, info};
 use crate::docker::DockerCompose;
 
 const SPACER: &str = "--------------------------------------------------";
-const REMOTE_USERNAME: &str = "ubuntu";
 
 #[derive(Debug, thiserror::Error)]
 pub enum BootstrapError {
@@ -27,7 +26,7 @@ pub enum BootstrapError {
     #[error("Failed to create SSH session: {0}")]
     FailedToCreateSession(#[source] ssh2::Error),
 
-    #[error("Remote instance is not available: {0}")]
+    #[error("Remote instance is unavailable: {0}")]
     InstanceUnavailable(#[source] std::io::Error),
 
     #[error("Failed to handshake SSH session: {0}")]
@@ -82,16 +81,19 @@ impl SCPError {
 }
 
 pub struct Bootstrapper {
+    ssh_username: String,
     ssh_private_key: String,
     bootstrap_script: Vec<u8>,
 }
 
 impl Bootstrapper {
     pub fn new(
+        ssh_username: String,
         ssh_private_key: String, // PEM file content
         bootstrap_script: Vec<u8>,
     ) -> Self {
         Self {
+            ssh_username,
             ssh_private_key,
             bootstrap_script,
         }
@@ -110,8 +112,8 @@ impl Bootstrapper {
         s.handshake().map_err(BootstrapError::FailedHandshake)?;
 
         info!("Authenticating SSH session...");
-        // TODO: review security policy of using private key
-        s.userauth_pubkey_memory(REMOTE_USERNAME, None, &self.ssh_private_key, None)
+
+        s.userauth_pubkey_memory(&self.ssh_username, None, &self.ssh_private_key, None)
             .map_err(BootstrapError::FailedToAuthenticate)?;
 
         if !s.authenticated() {
@@ -213,6 +215,7 @@ mod tests {
         let _ = FmtSubscriber::builder().with_max_level(Level::INFO).try_init();
 
         let boot = Bootstrapper::new(
+            "root".to_string(),
             include_str!("../test/ssh-key").to_string(),
             include_bytes!("../bootstrap/bootstrap.sh").to_vec(),
         );

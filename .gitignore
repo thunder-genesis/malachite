@@ -3,4 +3,5 @@ blocks/
 docs/
 target/
 test-ledger/
-.env
+deploy_bundle/
+.env*

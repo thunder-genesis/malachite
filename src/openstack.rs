@@ -1,4 +1,4 @@
-use std::net::{IpAddr, Ipv4Addr};
+use std::net::Ipv4Addr;
 
 use openstack_sdk::api::QueryAsync as _;
 use openstack_sdk::api::compute::v2::server::create_290 as create_api;
@@ -58,6 +58,7 @@ pub struct Openstack {
     os_project_name: String,
     os_project_domain_name: String,
     os_network_id: String,
+    os_security_group_name: String,
     os_image_id: String,
     os_flavor_id: String,
     os_ssh_pubkey_name: String,
@@ -72,6 +73,7 @@ impl Openstack {
         let os_project_name = cli.os_project_name.clone();
         let os_project_domain_name = cli.os_project_domain_name.clone();
         let os_network_id = cli.os_network_id.clone();
+        let os_security_group_name = cli.os_security_group_name.clone();
         let os_image_id = cli.os_image_id.clone();
         let os_flavor_id = cli.os_flavor_id.clone();
         let os_ssh_pubkey_name = cli.os_ssh_pubkey_name.clone();
@@ -84,6 +86,7 @@ impl Openstack {
             os_project_name,
             os_project_domain_name,
             os_network_id,
+            os_security_group_name,
             os_image_id,
             os_flavor_id,
             os_ssh_pubkey_name,
@@ -103,13 +106,18 @@ impl Openstack {
             .uuid(&self.os_network_id)
             .build()?;
 
-        // TODO: discover ID's by human readable names
+        let security_group = create_api::SecurityGroupsBuilder::default()
+            .name(&self.os_security_group_name)
+            .build()
+            .unwrap();
+
         let server = create_api::ServerBuilder::default()
             .image_ref(&self.os_image_id)
             .flavor_ref(&self.os_flavor_id)
             .name(instance_name)
             .networks(create_api::ServerNetworks::F1(vec![networks]))
             .key_name(&self.os_ssh_pubkey_name)
+            .security_groups(vec![security_group])
             .build()?;
 
         let instance = create_api::RequestBuilder::default().server(server).build()?;
@@ -134,8 +142,6 @@ impl Openstack {
             .id(instance_id)
             .build()?;
 
-        let mut state = InstanceStatus::default();
-
         // TODO: use proper retry policy
         for n in 1..100 {
             info!("Requesting Instance details ({n})...");
@@ -147,32 +153,48 @@ impl Openstack {
             debug!("Instance details: {}", instance_details);
 
             info!("Parsing Instance details...");
-            let recent_state: InstanceStatus = serde_json::from_value(instance_details)?;
+            let state: InstanceStatus = serde_json::from_value(instance_details)?;
 
-            if recent_state != state {
-                state = recent_state.clone();
+            info!(
+                "Instance state: {}. Task state: {:?}",
+                state.vm_state, state.task_state
+            );
 
-                info!(
-                    "Instance state: {}. Task state: {:?}",
-                    state.vm_state, state.task_state
-                );
+            if state.status == "ACTIVE" {
+                let Some(addresses) = state.addresses else {
+                    continue;
+                };
 
-                if state.status == "ACTIVE" {
-                    let addresses = state
-                        .clone()
-                        .addresses
-                        .public
-                        .ok_or(CloudError::ActiveInstanceHasNoAddress)?;
+                let Some(addresses) = addresses.as_object() else {
+                    continue;
+                };
 
-                    for a in addresses {
-                        match a.addr {
-                            IpAddr::V4(ip) => return Ok(ip),
-                            _ => continue,
+                for (_key, addresses) in addresses.into_iter() {
+                    let Some(addresses) = addresses.as_array() else {
+                        continue;
+                    };
+
+                    for address in addresses {
+                        let Some(address) = address.as_object() else {
+                            continue;
+                        };
+
+                        let Some(address) = address.get("addr") else {
+                            continue;
+                        };
+
+                        let Some(address) = address.as_str() else {
+                            continue;
+                        };
+
+                        if let Ok(ip) = address.parse::<Ipv4Addr>() {
+                            info!("Instance IP address: {}", ip);
+                            return Ok(ip);
                         }
                     }
-
-                    return Err(CloudError::ActiveInstanceHasNoIPV4Address);
                 }
+
+                return Err(CloudError::ActiveInstanceHasNoIPV4Address);
             }
 
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
@@ -209,17 +231,7 @@ struct InstanceStatus {
     #[serde(rename = "OS-EXT-STS:task_state")]
     pub task_state: Option<String>,
     pub status: String,
-    pub addresses: Addresses,
-}
-
-#[derive(Debug, Default, PartialEq, Eq, Clone, serde::Deserialize)]
-struct Addresses {
-    pub public: Option<Vec<Address>>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone, serde::Deserialize)]
-struct Address {
-    pub addr: IpAddr,
+    pub addresses: Option<serde_json::Value>,
 }
 
 // let flavors_req = openstack_sdk::api::compute::v2::flavor::list::RequestBuilder::default()

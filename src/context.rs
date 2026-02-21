@@ -95,7 +95,7 @@ impl Context {
                     source,
                 }
             })?;
-            Bootstrapper::new(ssh_private_key, ssh_bootstrap_script)
+            Bootstrapper::new(cli.ssh_username.clone(), ssh_private_key, ssh_bootstrap_script)
         };
 
         let cloudflare = Cloudflare::new(&cli.cloudflare_api_token, &cli.domain)?;

@@ -102,6 +102,9 @@ pub enum HandleSubchainError {
     KeypairManagementError(#[from] crate::keymanager::KeypairManagerError),
 }
 
+// TODO: EXTRACT "firewall" literal into OS_SECURITY_GROUP var
+// TODO: EXTRACT "root" literal into SSH_USERNAME var
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let dotenv = dotenvy::dotenv();
@@ -132,14 +135,14 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Listening for SubchainRegistered events...");
 
-    // use alloy::rpc::types::Log;
-    // let subchain_registered = crate::subchain_registry::SubchainRegistry::SubchainRegistered {
-    //     index: alloy::primitives::Uint::from(1),
-    //     owner: Address::ZERO,
-    // };
-    // let log: Log<alloy::primitives::LogData> = Log::default();
-    // let mut registrations =
-    //     Box::pin(futures_util::stream::once(async { Ok((subchain_registered, log)) }).chain(registrations));
+    use alloy::rpc::types::Log;
+    let subchain_registered = crate::subchain_registry::SubchainRegistry::SubchainRegistered {
+        index: alloy::primitives::Uint::from(4),
+        owner: Address::ZERO,
+    };
+    let log: Log<alloy::primitives::LogData> = Log::default();
+    let mut registrations =
+        Box::pin(futures_util::stream::once(async { Ok((subchain_registered, log)) }).chain(registrations));
 
     while let Some(subchain_registered) = registrations.next().await {
         let (subchain_registered, _log) = match subchain_registered {
@@ -339,7 +342,7 @@ async fn deploy_new_subchain(
                 }
                 Err(_err) => {
                     info!("{instance_ip} has not responded");
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    tokio::time::sleep(Duration::from_secs(10)).await;
                 }
             }
         }
@@ -351,7 +354,7 @@ async fn deploy_new_subchain(
     }
 
     // TODO: await SSH availability in more reliable way
-    const SSH_AWAITING_SECONDS: u64 = 60;
+    const SSH_AWAITING_SECONDS: u64 = 150;
     info!("Waiting for SSH to become available in {SSH_AWAITING_SECONDS} seconds...");
     tokio::time::sleep(Duration::from_secs(SSH_AWAITING_SECONDS)).await;
 
