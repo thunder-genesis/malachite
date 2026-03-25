@@ -20,7 +20,7 @@ impl DockerCompose {
         let subdomain = subdomain.as_ref();
         let domain = domain.as_ref();
         Self {
-            app_base_url: format!("https://{subdomain}.{domain}"),
+            app_base_url: format!("https://{subdomain}.{domain}/explorer"),
             app_node_url: format!("https://{subdomain}.{domain}/rpc"),
             subchain_id,
             keypair: "/opt/bridge/keypair.json".to_string(),

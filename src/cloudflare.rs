@@ -70,7 +70,7 @@ impl Cloudflare {
             params: CreateDnsRecordParams {
                 ttl: Some(3600),
                 priority: None,
-                proxied: Some(false),
+                proxied: Some(true),
                 name: subdomain.as_ref(),
                 content: DnsContent::A { content: ip },
             },
