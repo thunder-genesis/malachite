@@ -1,6 +1,6 @@
 cache/
 blocks/
-docs/
+docs-private/
 target/
 test-ledger/
 deploy_bundle/
