@@ -5,3 +5,4 @@ target/
 test-ledger/
 deploy_bundle/
 .env*
+deploy.nu

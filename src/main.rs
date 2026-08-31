@@ -135,14 +135,13 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Listening for SubchainRegistered events...");
 
-    use alloy::rpc::types::Log;
-    let subchain_registered = crate::subchain_registry::SubchainRegistry::SubchainRegistered {
-        index: alloy::primitives::Uint::from(4),
-        owner: Address::ZERO,
-    };
-    let log: Log<alloy::primitives::LogData> = Log::default();
-    let mut registrations =
-        Box::pin(futures_util::stream::once(async { Ok((subchain_registered, log)) }).chain(registrations));
+    // let subchain_registered = crate::subchain_registry::SubchainRegistry::SubchainRegistered {
+    //     index: alloy::primitives::Uint::from(4),
+    //     owner: Address::ZERO,
+    // };
+    // let log: alloy::rpc::types::Log<alloy::primitives::LogData> = Log::default();
+    // let mut registrations =
+    //     Box::pin(futures_util::stream::once(async { Ok((subchain_registered, log)) }).chain(registrations));
 
     while let Some(subchain_registered) = registrations.next().await {
         let (subchain_registered, _log) = match subchain_registered {
@@ -354,7 +353,7 @@ async fn deploy_new_subchain(
     }
 
     // TODO: await SSH availability in more reliable way
-    const SSH_AWAITING_SECONDS: u64 = 150;
+    const SSH_AWAITING_SECONDS: u64 = 200;
     info!("Waiting for SSH to become available in {SSH_AWAITING_SECONDS} seconds...");
     tokio::time::sleep(Duration::from_secs(SSH_AWAITING_SECONDS)).await;
 
